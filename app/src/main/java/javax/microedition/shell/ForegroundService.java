@@ -6,14 +6,17 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ComponentCallbacks2;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Debug;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.Process;
 import android.os.SystemClock;
 import android.util.Log;
@@ -38,6 +41,9 @@ public class ForegroundService extends Service {
     private static final String CHANNEL_ID = "foreground_service";
     private static final int NOTIFICATION_ID = 1;
     private static final String TAG = "ForegroundService";
+    public static long lastAppRamMB = 0;
+    public static double lastCpuPercent = 0.0;
+
     private SharedPreferences preferences;
     private final IBinder binder = new LocalBinder();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -46,6 +52,8 @@ public class ForegroundService extends Service {
     private long lastPeriodicGcTime = 0;
     private long lastThresholdGcTime = 0;
     private String lastGcStatus = "";
+    private PowerManager.WakeLock wakeLock;
+    private WifiManager.WifiLock wifiLock;
 
     private final Runnable updateRunnable = new Runnable() {
         @Override
@@ -61,6 +69,45 @@ public class ForegroundService extends Service {
         }
     }
 
+    private void acquireLocks() {
+        try {
+            boolean bgRun = preferences != null && preferences.getBoolean("pref_background_run", true);
+            if (bgRun) {
+                if (wakeLock == null) {
+                    PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+                    if (pm != null) {
+                        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "J2MELoader:AfkWakeLock");
+                        wakeLock.acquire();
+                    }
+                }
+                if (wifiLock == null) {
+                    WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                    if (wm != null) {
+                        wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "J2MELoader:AfkWifiLock");
+                        wifiLock.acquire();
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Error acquiring locks: " + t);
+        }
+    }
+
+    private void releaseLocks() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+            if (wifiLock != null && wifiLock.isHeld()) {
+                wifiLock.release();
+                wifiLock = null;
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Error releasing locks: " + t);
+        }
+    }
+
     private void checkForceGC(long currentAppRamMB) {
         if (!preferences.getBoolean("pref_force_gc", false)) {
             return;
@@ -69,26 +116,32 @@ public class ForegroundService extends Service {
         boolean shouldClean = false;
         String reason = "";
 
+        int threshold = 200;
         try {
-            int threshold = Integer.parseInt(preferences.getString("pref_gc_threshold", "0"));
-            if (threshold > 0 && currentAppRamMB >= threshold) {
-                if (now - lastThresholdGcTime > 10000) {
-                    lastThresholdGcTime = now;
-                    reason = "App RAM vượt ngưỡng " + threshold + "MB";
-                    shouldClean = true;
-                }
-            }
+            String thStr = preferences.getString("pref_gc_threshold", "200");
+            threshold = Integer.parseInt(thStr);
         } catch (Exception ignored) {}
 
+        if (threshold > 0 && currentAppRamMB >= threshold) {
+            if (now - lastThresholdGcTime > 15000) {
+                lastThresholdGcTime = now;
+                reason = "App RAM vượt " + threshold + "MB";
+                shouldClean = true;
+            }
+        }
+
         if (!shouldClean) {
+            int interval = 60;
             try {
-                int interval = Integer.parseInt(preferences.getString("pref_gc_interval", "0"));
-                if (interval > 0 && (now - lastPeriodicGcTime >= interval * 1000L)) {
-                    lastPeriodicGcTime = now;
-                    reason = "Định kỳ " + interval + "s";
-                    shouldClean = true;
-                }
+                String intStr = preferences.getString("pref_gc_interval", "60");
+                interval = Integer.parseInt(intStr);
             } catch (Exception ignored) {}
+
+            if (interval > 0 && (now - lastPeriodicGcTime >= interval * 1000L)) {
+                lastPeriodicGcTime = now;
+                reason = "Định kỳ " + interval + "s";
+                shouldClean = true;
+            }
         }
 
         if (shouldClean) {
@@ -97,7 +150,6 @@ public class ForegroundService extends Service {
     }
 
     private void performOverkillClean(String reason) {
-        Runtime runtime = Runtime.getRuntime();
         try {
             Image.clearCache();
             Font.clearCache();
@@ -109,22 +161,18 @@ public class ForegroundService extends Service {
             } catch (Throwable ignored) {}
 
             try {
-                getApplication().onTrimMemory(60);
-                for (int i = 0; i < 5; i++) {
-                    System.runFinalization();
-                    System.gc();
-                    runtime.gc();
-                    Thread.sleep(200L);
-                }
+                getApplication().onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL);
+                System.runFinalization();
+                System.gc();
                 handler.post(() -> {
                     SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-                    lastGcStatus = "[Dọn lúc " + sdf.format(new Date()) + "]";
+                    lastGcStatus = "[Đã dọn " + sdf.format(new Date()) + "]";
                     updateNotification();
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Lỗi khi dọn dẹp: " + e.getMessage());
             }
-        }).start();
+        }, "MemoryCleaner").start();
     }
 
     private Notification getNotification(String content) {
@@ -170,13 +218,14 @@ public class ForegroundService extends Service {
         long totalRamMB = getTotalRamMB(memInfo);
         long usedRamMB = totalRamMB - (memInfo.availMem / (1024 * 1024));
 
-        Debug.MemoryInfo debugMemInfo = new Debug.MemoryInfo();
-        Debug.getMemoryInfo(debugMemInfo);
-        long appPssMB = debugMemInfo.getTotalPss() / 1024;
-
-        checkForceGC(appPssMB);
-
         Runtime runtime = Runtime.getRuntime();
+        long heapMB = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
+        long nativeMB = Debug.getNativeHeapAllocatedSize() / (1024 * 1024);
+        long appRamMB = heapMB + nativeMB;
+        lastAppRamMB = appRamMB;
+
+        checkForceGC(appRamMB);
+
         long elapsedCpuTime = Process.getElapsedCpuTime();
         long elapsedRealtime = SystemClock.elapsedRealtime();
         double cpuUsage = 0.0;
@@ -191,8 +240,9 @@ public class ForegroundService extends Service {
         }
         lastCpuTime = elapsedCpuTime;
         lastRealTime = elapsedRealtime;
+        lastCpuPercent = cpuUsage;
 
-        String title = String.format(Locale.getDefault(), "RAM: %d/%d MB | App: %d MB", usedRamMB, totalRamMB, appPssMB);
+        String title = String.format(Locale.getDefault(), "RAM: %d/%d MB | App: %d MB", usedRamMB, totalRamMB, appRamMB);
         String text = String.format(Locale.getDefault(), "CPU: %.1f%% %s", cpuUsage, lastGcStatus);
 
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -217,6 +267,7 @@ public class ForegroundService extends Service {
     public void onCreate() {
         super.onCreate();
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        acquireLocks();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Foreground Service", NotificationManager.IMPORTANCE_LOW);
             NotificationManager nm = getSystemService(NotificationManager.class);
@@ -229,11 +280,13 @@ public class ForegroundService extends Service {
     @Override
     public void onDestroy() {
         handler.removeCallbacks(updateRunnable);
+        releaseLocks();
         super.onDestroy();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        acquireLocks();
         try {
             if (Build.VERSION.SDK_INT >= 34) {
                 startForeground(NOTIFICATION_ID, getNotification("Đang tính toán..."), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);

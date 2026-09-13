@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item type="id" name="accessibility_action_clickable_span" />
     <item type="id" name="accessibility_custom_action_0" />
@@ -41,6 +41,7 @@
     <item type="id" name="action_bar_spinner" />
     <item type="id" name="action_bar_subtitle" />
     <item type="id" name="action_bar_title" />
+    <item type="id" name="action_afk_mode" />
     <item type="id" name="action_chat_bubble" />
     <item type="id" name="action_clear_data" />
     <item type="id" name="action_common_settings" />

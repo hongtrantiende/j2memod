@@ -43,6 +43,8 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import androidx.preference.PreferenceManager;
+
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Objects;
@@ -203,7 +205,8 @@ public class MicroActivity extends AppCompatActivity {
 	@Override
 	public void onPause() {
 		visible = false;
-		if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+		boolean bgRun = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_background_run", true);
+		if (!bgRun && !Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null && !Canvas.isAfkMode()) {
 			MidletThread.pauseApp();
 		}
 		super.onPause();
@@ -217,6 +220,7 @@ public class MicroActivity extends AppCompatActivity {
 		if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
 			stopService(new Intent(this, ForegroundService.class));
 		}
+		Canvas.resetAfkMode();
 		ConsoleOutput.clear();
 		super.onDestroy();
 		if (isFinishing()) {
@@ -489,6 +493,8 @@ public class MicroActivity extends AppCompatActivity {
 								Uri.parse("package:" + getPackageName()));
 						startActivityForResult(intent, REQUEST_CODE_OVERLAY_PERMISSION);
 					}
+				} else if (id == R.id.action_afk_mode) {
+					Canvas.toggleAfkMode();
 				} else if (ContextHolder.getVk() != null) {
 					handleVkOptions(id);
 				}
