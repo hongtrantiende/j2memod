@@ -146,6 +146,8 @@ Tôi vô cùng cảm kích!"</string>
     <string name="not_set">Chưa đặt</string>
     <string name="overlay_permission_message">Để hiển thị game dạng bong bóng và tránh bị văng ứng dụng, bạn cần cấp quyền hiển thị trên các ứng dụng khác. Vui lòng cho phép trong màn hình tiếp theo.</string>
     <string name="overlay_permission_title">Yêu cầu quyền hiển thị trên ứng dụng khác</string>
+    <string name="storage_permission_title">Yêu cầu quyền truy cập bộ nhớ</string>
+    <string name="storage_permission_message">Để lưu trữ danh sách game, cài đặt và dữ liệu ứng dụng, bạn cần cấp quyền truy cập tất cả tệp. Vui lòng cho phép trong màn hình tiếp theo.</string>
     <string name="parallel_screen_redrawing">Kéo ngược màn hình song song</string>
     <string name="permission_request_failed">Ứng dụng này yêu cầu quyền ghi vào bộ nhớ</string>
     <string name="port">Cổng (Port)</string>

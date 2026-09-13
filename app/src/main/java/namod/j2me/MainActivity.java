@@ -25,6 +25,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.provider.Settings;
 import android.view.ViewConfiguration;
@@ -55,8 +56,10 @@ public class MainActivity extends BaseActivity {
 
 	private SharedPreferences sp;
 	private static final int MY_PERMISSIONS_REQUEST_WRITE_STORAGE = 0;
+	private static final int REQUEST_STORAGE_PERMISSION = 100;
 	private static final int REQUEST_OVERLAY_PERMISSION = 1;
 	private String emulatorDir;
+	private boolean isInitialized = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -68,12 +71,41 @@ public class MainActivity extends BaseActivity {
 			return;
 		}
 		sp = PreferenceManager.getDefaultSharedPreferences(this);
-		if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-				!= PackageManager.PERMISSION_GRANTED) {
+		checkStoragePermission();
+	}
+
+	private boolean hasStoragePermission() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			return Environment.isExternalStorageManager();
+		} else {
+			return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+					== PackageManager.PERMISSION_GRANTED;
+		}
+	}
+
+	private void checkStoragePermission() {
+		if (hasStoragePermission()) {
+			checkOverlayPermission();
+		} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			new AlertDialog.Builder(this)
+					.setTitle(R.string.storage_permission_title)
+					.setMessage(R.string.storage_permission_message)
+					.setCancelable(false)
+					.setPositiveButton(R.string.grant, (d, w) -> {
+						try {
+							Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+							intent.setData(Uri.parse("package:" + getPackageName()));
+							startActivityForResult(intent, REQUEST_STORAGE_PERMISSION);
+						} catch (Exception e) {
+							Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+							startActivityForResult(intent, REQUEST_STORAGE_PERMISSION);
+						}
+					})
+					.setNegativeButton(R.string.close, (d, w) -> finish())
+					.show();
+		} else {
 			ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
 					MY_PERMISSIONS_REQUEST_WRITE_STORAGE);
-		} else {
-			checkOverlayPermission();
 		}
 	}
 
@@ -98,7 +130,14 @@ public class MainActivity extends BaseActivity {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
-		if (requestCode == REQUEST_OVERLAY_PERMISSION) {
+		if (requestCode == REQUEST_STORAGE_PERMISSION) {
+			if (hasStoragePermission()) {
+				checkOverlayPermission();
+			} else {
+				Toast.makeText(this, R.string.permission_request_failed, Toast.LENGTH_SHORT).show();
+				finish();
+			}
+		} else if (requestCode == REQUEST_OVERLAY_PERMISSION) {
 			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
 				setupActivity(getIntent().getData() != null);
 			} else {
@@ -108,6 +147,7 @@ public class MainActivity extends BaseActivity {
 	}
 
 	private void setupActivity(boolean intentUri) {
+		if (isInitialized) return;
 		if (!initFolders()) {
 			String msg = getString(R.string.create_apps_dir_failed, emulatorDir);
 			new AlertDialog.Builder(this)
@@ -120,6 +160,7 @@ public class MainActivity extends BaseActivity {
 					.show();
 			return;
 		}
+		isInitialized = true;
 		checkActionBar();
 		setVolumeControlStream(AudioManager.STREAM_MUSIC);
 		MigrationUtils.check(this);
@@ -154,6 +195,11 @@ public class MainActivity extends BaseActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		if (!isInitialized && hasStoragePermission()) {
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+				setupActivity(getIntent().getData() != null);
+			}
+		}
 		if (emulatorDir != null && !Config.getEmulatorDir().equals(emulatorDir)) {
 			new Handler().post(this::recreate);
 		}
