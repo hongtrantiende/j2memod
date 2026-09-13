@@ -269,13 +269,48 @@ public class FloatingBubbleService extends Service {
         this.windowView.requestLayout();
     }
 
+    private void triggerTabMenu() {
+        Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
+        if (currentDisplayable instanceof Canvas) {
+            Canvas canvas = (Canvas) currentDisplayable;
+            Toast.makeText(this, "Đang mở danh sách Tab (*)...", Toast.LENGTH_SHORT).show();
+            canvas.postKeyPressed(Canvas.KEY_STAR);
+            this.handler.postDelayed(() -> {
+                canvas.postKeyReleased(Canvas.KEY_STAR);
+            }, 600L);
+        } else {
+            Toast.makeText(this, "Đang ở màn hình danh sách", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     @SuppressLint({"ClickableViewAccessibility"})
     private void setupWindowListeners() {
+        View tabBtn = this.windowView.findViewById(R.id.btn_tab_menu);
         View moveHandle = this.windowView.findViewById(R.id.move_handle);
+        View minimizeBtn = this.windowView.findViewById(R.id.btn_minimize);
         View resizeHandle = this.windowView.findViewById(R.id.resize_handle);
         View closeBtn = this.windowView.findViewById(R.id.close_window);
         View maxBtn = this.windowView.findViewById(R.id.maximize_window);
         View menuBtn = this.windowView.findViewById(R.id.menu_window);
+
+        if (tabBtn != null) {
+            tabBtn.setOnClickListener(v -> triggerTabMenu());
+            tabBtn.setOnLongClickListener(v -> {
+                // Short star press
+                Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
+                if (currentDisplayable instanceof Canvas) {
+                    Canvas canvas = (Canvas) currentDisplayable;
+                    canvas.postKeyPressed(Canvas.KEY_STAR);
+                    canvas.postKeyReleased(Canvas.KEY_STAR);
+                    Toast.makeText(this, "Nhấn phím *", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            });
+        }
+
+        if (minimizeBtn != null) {
+            minimizeBtn.setOnClickListener(v -> hideFloatingWindow());
+        }
 
         moveHandle.setOnTouchListener(new View.OnTouchListener() {
             private float initialTouchX;
@@ -328,11 +363,11 @@ public class FloatingBubbleService extends Service {
                 }
                 int rawX = this.initialWidth + ((int) (motionEvent.getRawX() - this.initialTouchX));
                 int rawY = this.initialHeight + ((int) (motionEvent.getRawY() - this.initialTouchY));
-                if (rawX < FloatingBubbleService.this.dpToPx(150)) {
-                    rawX = FloatingBubbleService.this.dpToPx(150);
+                if (rawX < FloatingBubbleService.this.dpToPx(160)) {
+                    rawX = FloatingBubbleService.this.dpToPx(160);
                 }
-                if (rawY < FloatingBubbleService.this.dpToPx(150)) {
-                    rawY = FloatingBubbleService.this.dpToPx(150);
+                if (rawY < FloatingBubbleService.this.dpToPx(160)) {
+                    rawY = FloatingBubbleService.this.dpToPx(160);
                 }
                 FloatingBubbleService.this.windowParams.width = rawX;
                 FloatingBubbleService.this.windowParams.height = rawY;
