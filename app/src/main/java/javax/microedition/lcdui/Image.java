@@ -63,7 +63,7 @@ public class Image {
 	}
 
 	public static Image createTransparentImage(int width, int height) {
-		return new Image(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888));
+		return new Image(Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
 	}
 
 	public Bitmap getBitmap() {
@@ -80,7 +80,7 @@ public class Image {
 	}
 
 	public static Image createImage(int width, int height) {
-		Bitmap b = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+		Bitmap b = Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888);
 		b.eraseColor(Color.WHITE);
 		return new Image(b);
 	}
@@ -139,7 +139,7 @@ public class Image {
 			}
 			rgb = rgbCopy;
 		}
-		return new Image(Bitmap.createBitmap(rgb, width, height, Bitmap.Config.ARGB_8888));
+		return new Image(Bitmap.createBitmap(rgb, width, height, (javax.microedition.lcdui.Canvas.isReduceGraphics() && !processAlpha) ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
 	}
 
 	public Graphics getGraphics() {

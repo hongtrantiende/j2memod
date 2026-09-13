@@ -57,9 +57,11 @@ import javax.microedition.lcdui.graphics.GlesView;
 import javax.microedition.lcdui.graphics.ShaderProgram;
 import javax.microedition.lcdui.overlay.FpsCounter;
 import javax.microedition.lcdui.overlay.Overlay;
+import javax.microedition.lcdui.overlay.Layer;
 import javax.microedition.lcdui.overlay.OverlayView;
 import javax.microedition.lcdui.pointer.FixedKeyboard;
 import javax.microedition.shell.MicroActivity;
+import javax.microedition.shell.MidletThread;
 import javax.microedition.util.ContextHolder;
 
 import androidx.annotation.NonNull;
@@ -147,6 +149,20 @@ public abstract class Canvas extends Displayable {
 	private static int scaleRatio;
 	private static int fpsLimit;
 	private static int layoutType;
+	private static boolean grayscale;
+	private static boolean reduceGraphics;
+	private static boolean sleepTab;
+	private static boolean autoSleep;
+	private static boolean wasAutoSleeping;
+	private static long lastInteractionTime = System.currentTimeMillis();
+	private static final Handler sleepHandler = new Handler(Looper.getMainLooper());
+	private static final Runnable sleepRunnable = () -> {
+		Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
+		if (currentDisplayable instanceof Canvas) {
+			((Canvas) currentDisplayable).repaint();
+		}
+	};
+	private static final long AUTO_SLEEP_TIMEOUT = 180000L;
 
 	static {
 		mapKeyCode(KEY_NUM0, 0, "0");
@@ -216,6 +232,7 @@ public abstract class Canvas extends Displayable {
 	private FpsCounter fpsCounter;
 
 	public Canvas() {
+		canvasWrapper.setGrayscale(grayscale);
 		if (graphicsMode == 1) {
 			renderer = new GLRenderer();
 		}
@@ -342,6 +359,38 @@ public abstract class Canvas extends Displayable {
 		Canvas.fpsLimit = fpsLimit;
 	}
 
+	public static void setGrayscale(boolean z) {
+		grayscale = z;
+	}
+
+	public static void setReduceGraphics(boolean z) {
+		reduceGraphics = z;
+	}
+
+	public static boolean isReduceGraphics() {
+		return reduceGraphics;
+	}
+
+	public static void setSleepTab(boolean z) {
+		sleepTab = z;
+	}
+
+	public static void setAutoSleep(boolean z) {
+		autoSleep = z;
+	}
+
+	public static void updateInteraction() {
+		lastInteractionTime = System.currentTimeMillis();
+		sleepHandler.removeCallbacks(sleepRunnable);
+		if (autoSleep) {
+			sleepHandler.postDelayed(sleepRunnable, AUTO_SLEEP_TIMEOUT + 100L);
+		}
+	}
+
+	public boolean isAutoSleeping() {
+		return autoSleep && (System.currentTimeMillis() - lastInteractionTime > AUTO_SLEEP_TIMEOUT);
+	}
+
 	public int getKeyCode(int gameAction) {
 		int res = gameActionToKeyCode.get(gameAction, Integer.MAX_VALUE);
 		if (res != Integer.MAX_VALUE) {
@@ -370,14 +419,17 @@ public abstract class Canvas extends Displayable {
 	}
 
 	public void postKeyPressed(int keyCode) {
+		updateInteraction();
 		Display.postEvent(CanvasEvent.getInstance(this, CanvasEvent.KEY_PRESSED, convertKeyCode(keyCode)));
 	}
 
 	public void postKeyReleased(int keyCode) {
+		updateInteraction();
 		Display.postEvent(CanvasEvent.getInstance(this, CanvasEvent.KEY_RELEASED, convertKeyCode(keyCode)));
 	}
 
 	public void postKeyRepeated(int keyCode) {
+		updateInteraction();
 		Display.postEvent(CanvasEvent.getInstance(this, CanvasEvent.KEY_REPEATED, convertKeyCode(keyCode)));
 	}
 
@@ -393,9 +445,16 @@ public abstract class Canvas extends Displayable {
 		if (graphicsMode != 2) return; // Fix for Android Pie
 		CanvasWrapper g = canvasWrapper;
 		g.bind(canvas);
-		g.clear(backgroundColor);
-		offscreenCopy.getBitmap().prepareToDraw();
-		g.drawImage(offscreenCopy, virtualScreen);
+		if (isAutoSleeping()) {
+			g.clear(-16777216);
+			g.setTextColor(-1);
+			g.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
+					displayWidth / 2.0f, displayHeight / 2.0f);
+		} else {
+			g.clear(backgroundColor);
+			offscreenCopy.getBitmap().prepareToDraw();
+			g.drawImage(offscreenCopy, virtualScreen);
+		}
 		if (fpsCounter != null) {
 			fpsCounter.increment();
 		}
@@ -722,9 +781,25 @@ public abstract class Canvas extends Displayable {
 	}
 
 	private void limitFps() {
-		if (fpsLimit <= 0) return;
+		int currentLimit = fpsLimit;
+		boolean autoSleeping = isAutoSleeping();
+		if (sleepTab && !isShown()) {
+			currentLimit = 10;
+		} else if (autoSleep && autoSleeping) {
+			if (!wasAutoSleeping) {
+				wasAutoSleeping = true;
+				Image.clearCache();
+				Font.clearCache();
+				System.gc();
+			}
+			currentLimit = 10;
+		} else {
+			wasAutoSleeping = false;
+		}
+
+		if (currentLimit <= 0) return;
 		try {
-			long millis = (1000 / fpsLimit) - (System.currentTimeMillis() - lastFrameTime);
+			long millis = (1000 / currentLimit) - (System.currentTimeMillis() - lastFrameTime);
 			if (millis > 0) Thread.sleep(millis);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -749,8 +824,16 @@ public abstract class Canvas extends Displayable {
 			}
 			CanvasWrapper g = this.canvasWrapper;
 			g.bind(canvas);
-			g.clear(backgroundColor);
-			g.drawImage(offscreenCopy, virtualScreen);
+			if (isAutoSleeping()) {
+				g.clear(-16777216);
+				g.setTextColor(-1);
+				g.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
+						displayWidth / 2.0f, displayHeight / 2.0f);
+			} else {
+				int bg = Displayable.isFloatingMode ? -16777216 : backgroundColor;
+				g.clear(bg);
+				g.drawImage(offscreenCopy, virtualScreen);
+			}
 			surface.unlockCanvasAndPost(canvas);
 			if (fpsCounter != null) {
 				fpsCounter.increment();
@@ -867,7 +950,7 @@ public abstract class Canvas extends Displayable {
 
 		@Override
 		public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-			program = new ShaderProgram(shaderFilter);
+			program = new ShaderProgram(shaderFilter, Canvas.grayscale);
 			int c = Canvas.backgroundColor;
 			glClearColor((c >> 16 & 0xff) / 255.0f, (c >> 8 & 0xff) / 255.0f, (c & 0xff) / 255.0f, 1.0f);
 			glDisable(GL_BLEND);
@@ -890,9 +973,19 @@ public abstract class Canvas extends Displayable {
 
 		@Override
 		public void onDrawFrame(GL10 gl) {
-			glClear(GL_COLOR_BUFFER_BIT);
-			GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, offscreenCopy.getBitmap(), 0);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			if (isAutoSleeping()) {
+				glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
+				if (overlayView != null) {
+					overlayView.postInvalidate();
+				}
+			} else {
+				int c = Canvas.backgroundColor;
+				glClearColor((c >> 16 & 0xff) / 255.0f, (c >> 8 & 0xff) / 255.0f, (c & 0xff) / 255.0f, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
+				GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, offscreenCopy.getBitmap(), 0);
+				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			}
 			if (fpsCounter != null) {
 				fpsCounter.increment();
 			}
@@ -1037,6 +1130,10 @@ public abstract class Canvas extends Displayable {
 		}
 
 		public boolean onKeyDown(int keyCode, KeyEvent event) {
+			updateInteraction();
+			if (isAutoSleeping()) {
+				repaint();
+			}
 			keyCode = convertAndroidKeyCode(keyCode);
 			if (keyCode == Integer.MAX_VALUE) {
 				return false;
@@ -1067,6 +1164,21 @@ public abstract class Canvas extends Displayable {
 		@Override
 		@SuppressLint("ClickableViewAccessibility")
 		public boolean onTouch(View v, MotionEvent event) {
+			if (Canvas.this.isAutoSleeping()) {
+				updateInteraction();
+				repaint();
+				int actionMasked = event.getActionMasked();
+				if (actionMasked == MotionEvent.ACTION_DOWN || actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
+					if (overlay != null) {
+						overlay.show();
+						int actionIndex = event.getActionIndex();
+						overlay.pointerPressed(event.getPointerId(actionIndex), event.getX(actionIndex), event.getY(actionIndex));
+					}
+				} else if ((actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_POINTER_UP) && overlay != null) {
+					overlay.hide();
+				}
+				return true;
+			}
 			switch (event.getActionMasked()) {
 				case MotionEvent.ACTION_DOWN:
 					if (overlay != null) {
@@ -1159,6 +1271,13 @@ public abstract class Canvas extends Displayable {
 				overlayView.addLayer(fpsCounter);
 			}
 			if (overlayView != null) {
+				overlayView.addLayer(canvasWrapper -> {
+					if (Canvas.this.isAutoSleeping()) {
+						canvasWrapper.setTextColor(-1);
+						canvasWrapper.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
+								displayWidth / 2.0f, displayHeight / 2.0f);
+					}
+				});
 				overlayView.setVisibility(true);
 			}
 		}

@@ -47,6 +47,15 @@ public class PNGUtils {
 		return b;
 	}
 
+	private static Bitmap decodeWithBasicOptions(byte[] imageData, int imageOffset, int imageLength) {
+		if (!javax.microedition.lcdui.Canvas.isReduceGraphics()) {
+			return BitmapFactory.decodeByteArray(imageData, imageOffset, imageLength);
+		}
+		BitmapFactory.Options options = new BitmapFactory.Options();
+		options.inPreferredConfig = Bitmap.Config.RGB_565;
+		return BitmapFactory.decodeByteArray(imageData, imageOffset, imageLength, options);
+	}
+
 	public static Bitmap getFixedBitmap(byte[] imageData, int imageOffset, int imageLength) {
 		Bitmap b = null;
 		byte[] signature = Arrays.copyOfRange(imageData, imageOffset, imageOffset + PNG_SIGNATURE.length);
@@ -55,10 +64,10 @@ public class PNGUtils {
 				b = fixPNG(stream);
 			} catch (Exception e) {
 				e.printStackTrace();
-				b = BitmapFactory.decodeByteArray(imageData, imageOffset, imageLength);
+				b = decodeWithBasicOptions(imageData, imageOffset, imageLength);
 			}
 		} else {
-			b = BitmapFactory.decodeByteArray(imageData, imageOffset, imageLength);
+			b = decodeWithBasicOptions(imageData, imageOffset, imageLength);
 		}
 		return b;
 	}
@@ -83,7 +92,9 @@ public class PNGUtils {
 			}
 		}
 		reader.end();
-		return Bitmap.createBitmap(pix, width, height, Bitmap.Config.ARGB_8888);
+		Bitmap.Config config = (!javax.microedition.lcdui.Canvas.isReduceGraphics() || imageInfo.alpha || trns != null)
+				? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
+		return Bitmap.createBitmap(pix, width, height, config);
 	}
 
 	private static int[] lineToARGB32(ImageLineInt line, PngChunkPLTE pal, PngChunkTRNS trns, int[] buf) {

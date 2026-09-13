@@ -239,6 +239,11 @@ public class MicroLoader {
 			Canvas.setForceFullscreen(params.forceFullscreen);
 			Canvas.setShowFps(params.showFps);
 			Canvas.setLimitFps(params.fpsLimit);
+			Canvas.setGrayscale(params.screenGrayscale);
+			Canvas.setSleepTab(params.sleepTab);
+			Canvas.setAutoSleep(params.autoSleep);
+			Canvas.setReduceGraphics(params.reduceGraphics);
+			Canvas.updateInteraction();
 			ShaderInfo shader = params.shader;
 			if (shader == null) shader = new ShaderInfo();
 			Canvas.setShaderFilter(shader);

@@ -3,6 +3,8 @@ package javax.microedition.lcdui.graphics;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.RectF;
@@ -94,6 +96,16 @@ public class CanvasWrapper {
 
 	public void setTextColor(int color) {
 		textPaint.setColor(color);
+	}
+
+	public void setGrayscale(boolean grayscale) {
+		if (!grayscale) {
+			imgPaint.setColorFilter(null);
+			return;
+		}
+		ColorMatrix colorMatrix = new ColorMatrix();
+		colorMatrix.setSaturation(0.0f);
+		imgPaint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
 	}
 
 	public void drawBackgroundedText(String text) {

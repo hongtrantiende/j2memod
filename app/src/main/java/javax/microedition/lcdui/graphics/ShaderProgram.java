@@ -44,11 +44,20 @@ public class ShaderProgram {
 	public int uPixelDelta;
 
 	public ShaderProgram(ShaderInfo shader) {
+		this(shader, false);
+	}
+
+	public ShaderProgram(ShaderInfo shader, boolean grayscale) {
 		String vertex = shader.vertex;
 		String fragment = shader.fragment;
 		if (vertex != null && fragment != null) {
 			String vertexCode = FileUtils.getText(Config.getShadersDir() + vertex);
 			String fragmentCode = FileUtils.getText(Config.getShadersDir() + fragment);
+			if (grayscale) {
+				fragmentCode = fragmentCode.replace("void main()", "void main_old()")
+						.replace("gl_FragColor =", "vec4 color =")
+						+ "\nvoid main() {\n    main_old();\n    float gray = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));\n    gl_FragColor = vec4(vec3(gray), gl_FragColor.a);\n}\n";
+			}
 			if (createProgram(vertexCode, fragmentCode) != -1) {
 				glReleaseShaderCompiler();
 				return;
@@ -58,7 +67,9 @@ public class ShaderProgram {
 					Toast.LENGTH_LONG).show());
 		}
 		String vertexCode = ContextHolder.getAssetAsString(VERTEX);
-		String fragmentCode = ContextHolder.getAssetAsString(FRAGMENT);
+		String fragmentCode = grayscale
+				? "precision mediump float;\nuniform sampler2D sampler0;\nvarying vec2 v_texcoord0;\nvoid main() {\n    vec4 color = texture2D(sampler0, v_texcoord0);\n    float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));\n    gl_FragColor = vec4(vec3(gray), color.a);\n}"
+				: ContextHolder.getAssetAsString(FRAGMENT);
 		int program = createProgram(vertexCode, fragmentCode);
 		glReleaseShaderCompiler();
 		if (program == -1) {
