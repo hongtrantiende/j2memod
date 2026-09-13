@@ -4,8 +4,7 @@
     android:layout_height="wrap_content"
     android:layout_margin="6dp"
     android:background="@drawable/bg_card_jar"
-    android:clickable="true"
-    android:focusable="true"
+    android:duplicateParentState="true"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="10dp">
