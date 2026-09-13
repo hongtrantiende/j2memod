@@ -49,6 +49,8 @@ public class Display {
 			};
 
 	private static Display instance;
+	private static boolean multiTouchSupported;
+	private static String pointerNumber;
 	static EventQueue queue = new EventQueue();
 
 	static {
@@ -59,9 +61,29 @@ public class Display {
 
 	public static Display getDisplay(MIDlet midlet) {
 		if (instance == null && midlet != null) {
+			String nokiaUiEnhancement = midlet.getAppProperty("Nokia-UI-Enhancement");
+			if (nokiaUiEnhancement != null) {
+				multiTouchSupported = nokiaUiEnhancement.contains("EnableMultiPointTouchEvents");
+			}
 			instance = new Display();
 		}
 		return instance;
+	}
+
+	public static boolean isMultiTouchSupported() {
+		return multiTouchSupported;
+	}
+
+	public static void setPointerNumber(int pointerNumber2) {
+		pointerNumber = String.valueOf(pointerNumber2);
+	}
+
+	public static void resetPointerNumber() {
+		pointerNumber = null;
+	}
+
+	public static String getPointerNumber() {
+		return pointerNumber;
 	}
 
 	private Display() {

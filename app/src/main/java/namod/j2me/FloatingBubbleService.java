@@ -17,6 +17,7 @@ import android.os.Process;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -48,6 +49,10 @@ public class FloatingBubbleService extends Service {
     private static final int NOTIFICATION_ID = 101;
     private static final String PREFS_NAME = "floating_window_prefs";
     private static FloatingBubbleService instance;
+
+    public static FloatingBubbleService getInstance() {
+        return instance;
+    }
     private View floatingView;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WindowManager.LayoutParams params;
@@ -191,7 +196,7 @@ public class FloatingBubbleService extends Service {
     private void maximizeWindowClicked(View view) {
         hideFloatingWindow();
         Intent intent = new Intent(this, MicroActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         stopSelf();
     }
@@ -392,12 +397,20 @@ public class FloatingBubbleService extends Service {
         instance = this;
         this.windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createNotificationChannel();
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("J2ME Loader")
-                .setContentText("Bong bóng chat đang hoạt động")
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .build();
-        startForeground(NOTIFICATION_ID, notification);
+        try {
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setContentTitle("J2ME Loader")
+                    .setContentText("Bong bóng chat đang hoạt động")
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .build();
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+        } catch (Throwable t) {
+            Log.e("FloatingBubbleService", "Failed startForeground", t);
+        }
 
         this.floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_bubble, null);
         int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;

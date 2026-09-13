@@ -234,8 +234,16 @@ public class ForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        startForeground(NOTIFICATION_ID, getNotification("Đang tính toán..."));
-        handler.post(updateRunnable);
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIFICATION_ID, getNotification("Đang tính toán..."), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(NOTIFICATION_ID, getNotification("Đang tính toán..."));
+            }
+            handler.post(updateRunnable);
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed startForeground", t);
+        }
         return START_STICKY;
     }
 }

@@ -1,22 +1,12 @@
-/*
- * Copyright 2018 Nikita Shakarun
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package namod.j2me.filepicker;
 
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
+import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,6 +20,7 @@ import java.util.List;
 import java.util.Stack;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import namod.j2me.R;
 
@@ -106,6 +97,47 @@ public class FilteredFilePickerFragment extends FilePickerFragment {
 			super.onBindHeaderViewHolder(viewHolder);
 		} else {
 			viewHolder.itemView.setEnabled(false);
+		}
+	}
+
+	@Override
+	protected boolean hasPermission(File file) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			return Environment.isExternalStorageManager();
+		}
+		if (getContext() == null) return false;
+		return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)
+				== PackageManager.PERMISSION_GRANTED;
+	}
+
+	@Override
+	protected void handlePermission(File file) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			if (Environment.isExternalStorageManager()) {
+				refresh(file);
+			} else {
+				try {
+					Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+					if (getContext() != null) {
+						intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+					}
+					startActivity(intent);
+				} catch (Exception e) {
+					Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+					startActivity(intent);
+				}
+			}
+		} else {
+			super.handlePermission(file);
+		}
+	}
+
+	@Override
+	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+		if (hasPermission(currentDir)) {
+			refresh(currentDir);
+		} else {
+			super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		}
 	}
 }

@@ -26,6 +26,7 @@ import android.graphics.RectF;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -663,9 +664,13 @@ public abstract class Canvas extends Displayable {
 		Display.postEvent(paintEvent);
 	}
 
+	public boolean isFullScreen() {
+		return this.fullscreen || Displayable.isFloatingMode;
+	}
+
 	@Override
 	public boolean isShown() {
-		return super.isShown() && visible;
+		return super.isShown() && (this.visible || Displayable.isFloatingMode);
 	}
 
 	// GameCanvas
@@ -1002,18 +1007,22 @@ public abstract class Canvas extends Displayable {
 		public boolean accept(Event event) {
 			return event == this;
 		}
+
 	}
 
 	private class ViewCallbacks implements View.OnTouchListener, SurfaceHolder.Callback, View.OnKeyListener {
 
 		private final View mView;
-		OverlayView overlayView;
 		private FrameLayout rootView;
 
 		public ViewCallbacks(View view) {
 			mView = view;
-			rootView = ((Activity) view.getContext()).findViewById(R.id.midletFrame);
-			overlayView = rootView.findViewById(R.id.vOverlay);
+			if (view.getContext() instanceof Activity) {
+				rootView = ((Activity) view.getContext()).findViewById(R.id.midletFrame);
+				if (rootView != null) {
+					Canvas.this.overlayView = rootView.findViewById(R.id.vOverlay);
+				}
+			}
 		}
 
 		@Override
@@ -1090,7 +1099,7 @@ public abstract class Canvas extends Displayable {
 						if ((overlay == null || !overlay.pointerDragged(id, event.getX(p), event.getY(p)))
 								&& touchInput && id == 0) {
 							Display.postEvent(CanvasEvent.getInstance(Canvas.this, CanvasEvent.POINTER_DRAGGED, id,
-									convertPointerX(event.getX(p)), convertPointerY(event.getY(p))));
+									convertPointerX(event.getX()), convertPointerY(event.getY())));
 						}
 					}
 					break;
@@ -1116,10 +1125,15 @@ public abstract class Canvas extends Displayable {
 		@Override
 		public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int newWidth, int newHeight) {
 			Rect offsetViewBounds = new Rect(0, 0, newWidth, newHeight);
-			// calculates the relative coordinates to the parent
-			rootView.offsetDescendantRectToMyCoords(mView, offsetViewBounds);
+			if (rootView != null && Build.VERSION.SDK_INT >= 19 && rootView.isAttachedToWindow() && mView.isAttachedToWindow()) {
+				try {
+					rootView.offsetDescendantRectToMyCoords(mView, offsetViewBounds);
+				} catch (IllegalArgumentException ignored) {}
+			}
 			synchronized (paintSync) {
-				overlayView.setTargetBounds(offsetViewBounds);
+				if (overlayView != null) {
+					overlayView.setTargetBounds(offsetViewBounds);
+				}
 				displayWidth = newWidth;
 				displayHeight = newHeight;
 				if (checkSizeChanged() || !sizeChangedCalled) {
@@ -1140,11 +1154,13 @@ public abstract class Canvas extends Displayable {
 				surface = holder.getSurface();
 				Display.postEvent(CanvasEvent.getInstance(Canvas.this, CanvasEvent.SHOW_NOTIFY));
 			}
-			if (showFps) {
+			if (showFps && overlayView != null) {
 				fpsCounter = new FpsCounter(overlayView);
 				overlayView.addLayer(fpsCounter);
 			}
-			overlayView.setVisibility(true);
+			if (overlayView != null) {
+				overlayView.setVisibility(true);
+			}
 		}
 
 		@Override
@@ -1155,13 +1171,15 @@ public abstract class Canvas extends Displayable {
 			synchronized (paintSync) {
 				surface = null;
 				Display.postEvent(CanvasEvent.getInstance(Canvas.this, CanvasEvent.HIDE_NOTIFY));
-				if (fpsCounter != null) {
+				if (fpsCounter != null && overlayView != null) {
 					fpsCounter.stop();
 					overlayView.removeLayer(fpsCounter);
 					fpsCounter = null;
 				}
 			}
-			overlayView.setVisibility(false);
+			if (overlayView != null) {
+				overlayView.setVisibility(false);
+			}
 		}
 
 	}

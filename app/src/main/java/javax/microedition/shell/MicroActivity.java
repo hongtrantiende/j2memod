@@ -30,6 +30,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -148,11 +149,15 @@ public class MicroActivity extends AppCompatActivity {
 			setOrientation(orientation);
 		}
 
-		Intent fgIntent = new Intent(this, ForegroundService.class);
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			startForegroundService(fgIntent);
-		} else {
-			startService(fgIntent);
+		try {
+			Intent fgIntent = new Intent(this, ForegroundService.class);
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+				startForegroundService(fgIntent);
+			} else {
+				startService(fgIntent);
+			}
+		} catch (Throwable t) {
+			Log.e("MicroActivity", "Failed to start ForegroundService", t);
 		}
 
 		if (MidletThread.isActive()) {
@@ -184,7 +189,9 @@ public class MicroActivity extends AppCompatActivity {
 	@Override
 	public void onPause() {
 		visible = false;
-		MidletThread.pauseApp();
+		if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+			MidletThread.pauseApp();
+		}
 		super.onPause();
 	}
 
@@ -193,11 +200,15 @@ public class MicroActivity extends AppCompatActivity {
 		try {
 			unregisterReceiver(closeReceiver);
 		} catch (Exception ignored) {}
-		stopService(new Intent(this, ForegroundService.class));
+		if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+			stopService(new Intent(this, ForegroundService.class));
+		}
 		ConsoleOutput.clear();
 		super.onDestroy();
 		if (isFinishing()) {
-			Process.killProcess(Process.myPid());
+			if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+				Process.killProcess(Process.myPid());
+			}
 		}
 	}
 
@@ -258,21 +269,27 @@ public class MicroActivity extends AppCompatActivity {
 	}
 
 	private void showMidletDialog(String[] midletsNameArray, final String[] midletsClassArray) {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this)
-				.setTitle(R.string.select_dialog_title)
-				.setItems(midletsNameArray, (d, n) -> MidletThread.create(microLoader, midletsClassArray[n]))
-				.setOnCancelListener(dialogInterface -> finish());
-		builder.show();
+		runOnUiThread(() -> {
+			if (isFinishing() || isDestroyed()) return;
+			AlertDialog.Builder builder = new AlertDialog.Builder(this)
+					.setTitle(R.string.select_dialog_title)
+					.setItems(midletsNameArray, (d, n) -> MidletThread.create(microLoader, midletsClassArray[n]))
+					.setOnCancelListener(dialogInterface -> finish());
+			builder.show();
+		});
 	}
 
 	void showErrorDialog(String message) {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this)
-				.setIcon(android.R.drawable.ic_dialog_alert)
-				.setTitle(R.string.error)
-				.setMessage(message)
-				.setPositiveButton(android.R.string.ok, (d, w) -> ContextHolder.notifyDestroyed());
-		builder.setOnCancelListener(dialogInterface -> ContextHolder.notifyDestroyed());
-		builder.show();
+		runOnUiThread(() -> {
+			if (isFinishing() || isDestroyed()) return;
+			AlertDialog.Builder builder = new AlertDialog.Builder(this)
+					.setIcon(android.R.drawable.ic_dialog_alert)
+					.setTitle(R.string.error)
+					.setMessage(message)
+					.setPositiveButton(android.R.string.ok, (d, w) -> ContextHolder.notifyDestroyed());
+			builder.setOnCancelListener(dialogInterface -> ContextHolder.notifyDestroyed());
+			builder.show();
+		});
 	}
 
 	private SimpleEvent msgSetCurrent = new SimpleEvent() {

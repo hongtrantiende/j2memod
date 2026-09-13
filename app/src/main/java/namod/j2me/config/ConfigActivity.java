@@ -769,6 +769,7 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 			case R.id.action_start:
+				saveParams();
 				startMIDlet();
 				break;
 			case R.id.action_clear_data:
@@ -810,7 +811,8 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 
 	private void startMIDlet() {
 		Intent i = new Intent(getIntent());
-		i.setClass(getApplicationContext(), MicroActivity.class);
+		i.setClass(this, MicroActivity.class);
+		i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 		startActivity(i);
 		finish();
 	}

@@ -17,6 +17,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -44,8 +45,7 @@
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
-            android:exported="true"
-            android:launchMode="singleTask">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -97,6 +97,7 @@
             android:exported="false"
             android:theme="@style/AppTheme.NoActionBar"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode"
+            android:launchMode="singleTask"
             android:process=":midlet" />
         <activity
             android:name=".settings.SettingsActivity"
@@ -107,7 +108,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".crashes.donations.DonationsActivity"
+            android:name=".donations.DonationsActivity"
             android:exported="false" />
         <activity
             android:name=".settings.KeyMapperActivity"
@@ -124,11 +125,21 @@
         <service
             android:name="javax.microedition.shell.ForegroundService"
             android:exported="false"
-            android:process=":midlet" />
+            android:foregroundServiceType="specialUse"
+            android:process=":midlet">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keep J2ME emulator process alive and monitor performance" />
+        </service>
         <service
             android:name="namod.j2me.FloatingBubbleService"
             android:exported="false"
-            android:process=":midlet" />
+            android:foregroundServiceType="specialUse"
+            android:process=":midlet">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Floating window overlay for J2ME game" />
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"

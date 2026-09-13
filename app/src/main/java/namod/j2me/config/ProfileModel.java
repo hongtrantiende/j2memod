@@ -99,6 +99,24 @@ public class ProfileModel {
 	@SerializedName("ShowKeyboard")
 	public boolean showKeyboard;
 
+	@SerializedName("AutoSleep")
+	public boolean autoSleep;
+
+	@SerializedName("SleepTab")
+	public boolean sleepTab;
+
+	@SerializedName("ReduceGraphics")
+	public boolean reduceGraphics;
+
+	@SerializedName("ScreenGrayscale")
+	public boolean screenGrayscale;
+
+	@SerializedName("ProxyAddr")
+	public String proxyAddr;
+
+	@SerializedName("ProxyPort")
+	public String proxyPort;
+
 	@SerializedName("VirtualKeyboardType")
 	public int vkType;
 

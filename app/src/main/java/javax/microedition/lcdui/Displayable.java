@@ -107,10 +107,7 @@ public abstract class Displayable {
 
 	public boolean isShown() {
 		MicroActivity activity = ContextHolder.getActivity();
-		if (activity != null) {
-			return activity.isVisible() && activity.getCurrent() == this;
-		}
-		return false;
+		return activity != null ? (activity.isVisible() || isFloatingMode) && activity.getCurrent() == this : isFloatingMode;
 	}
 
 	public View getDisplayableView() {
