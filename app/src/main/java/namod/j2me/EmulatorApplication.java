@@ -11,6 +11,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
+import javax.microedition.lcdui.Font;
+import javax.microedition.lcdui.Image;
 import javax.microedition.media.control.ToneControl;
 import javax.microedition.util.ContextHolder;
 
@@ -64,6 +66,10 @@ public class EmulatorApplication extends Application {
 	@Override
 	public void onLowMemory() {
 		super.onLowMemory();
+		try {
+			Image.clearCache();
+			Font.clearCache();
+		} catch (Throwable ignored) {}
 		System.gc();
 	}
 
@@ -71,6 +77,10 @@ public class EmulatorApplication extends Application {
 	public void onTrimMemory(int level) {
 		super.onTrimMemory(level);
 		if (level >= 60) {
+			try {
+				Image.clearCache();
+				Font.clearCache();
+			} catch (Throwable ignored) {}
 			System.gc();
 		}
 	}

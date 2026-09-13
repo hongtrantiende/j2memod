@@ -43,7 +43,7 @@ public class Font {
 	private static final int FONT_COUNT = 3 * 3 * (1 << 3);
 	private static Font[] fonts = new Font[FONT_COUNT];
 
-	public static void clearCache() {
+	public static synchronized void clearCache() {
 		synchronized (fonts) {
 			java.util.Arrays.fill(fonts, null);
 		}
@@ -97,10 +97,10 @@ public class Font {
 		paint.setTextSize(size * size / (paint.descent() - paint.ascent())); // and now we set the size equal to the given one (in pixels)
 	}
 
-	public static Font getFont(int face, int style, int size) {
+	public static synchronized Font getFont(int face, int style, int size) {
 		int index = getFontIndex(face, style, size);
-
-		if (fonts[index] == null) {
+		Font font = fonts[index];
+		if (font == null) {
 			Typeface typeface;
 			int tfstyle = Typeface.NORMAL;
 			boolean underline;
@@ -146,14 +146,14 @@ public class Font {
 					break;
 			}
 
-			fonts[index] = new Font(typeface, tfstyle, fsize, underline);
-
-			fonts[index].face = face;
-			fonts[index].style = style;
-			fonts[index].size = size;
+			font = new Font(typeface, tfstyle, fsize, underline);
+			font.face = face;
+			font.style = style;
+			font.size = size;
+			fonts[index] = font;
 		}
 
-		return fonts[index];
+		return font;
 	}
 
 	public static Font getDefaultFont() {

@@ -63,7 +63,13 @@ public class Image {
 	}
 
 	public static Image createTransparentImage(int width, int height) {
-		return new Image(Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
+		try {
+			return new Image(Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
+		} catch (OutOfMemoryError e) {
+			clearCache();
+			System.gc();
+			return new Image(Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
+		}
 	}
 
 	public Bitmap getBitmap() {
@@ -80,9 +86,17 @@ public class Image {
 	}
 
 	public static Image createImage(int width, int height) {
-		Bitmap b = Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888);
-		b.eraseColor(Color.WHITE);
-		return new Image(b);
+		try {
+			Bitmap b = Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888);
+			b.eraseColor(Color.WHITE);
+			return new Image(b);
+		} catch (OutOfMemoryError e) {
+			clearCache();
+			System.gc();
+			Bitmap b = Bitmap.createBitmap(width, height, javax.microedition.lcdui.Canvas.isReduceGraphics() ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888);
+			b.eraseColor(Color.WHITE);
+			return new Image(b);
+		}
 	}
 
 	public static Image createImage(String resname) throws IOException {
@@ -122,11 +136,23 @@ public class Image {
 	}
 
 	public static Image createImage(Image image, int x, int y, int width, int height, int transform) {
-		return new Image(Bitmap.createBitmap(image.bitmap, x, y, width, height, Sprite.transformMatrix(transform, width / 2f, height / 2f), false));
+		try {
+			return new Image(Bitmap.createBitmap(image.bitmap, x, y, width, height, Sprite.transformMatrix(transform, width / 2f, height / 2f), false));
+		} catch (OutOfMemoryError e) {
+			clearCache();
+			System.gc();
+			return new Image(Bitmap.createBitmap(image.bitmap, x, y, width, height, Sprite.transformMatrix(transform, width / 2f, height / 2f), false));
+		}
 	}
 
 	public static Image createImage(Image image) {
-		return new Image(Bitmap.createBitmap(image.bitmap));
+		try {
+			return new Image(Bitmap.createBitmap(image.bitmap));
+		} catch (OutOfMemoryError e) {
+			clearCache();
+			System.gc();
+			return new Image(Bitmap.createBitmap(image.bitmap));
+		}
 	}
 
 	public static Image createRGBImage(int[] rgb, int width, int height, boolean processAlpha) {
@@ -139,7 +165,13 @@ public class Image {
 			}
 			rgb = rgbCopy;
 		}
-		return new Image(Bitmap.createBitmap(rgb, width, height, (javax.microedition.lcdui.Canvas.isReduceGraphics() && !processAlpha) ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
+		try {
+			return new Image(Bitmap.createBitmap(rgb, width, height, (javax.microedition.lcdui.Canvas.isReduceGraphics() && !processAlpha) ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
+		} catch (OutOfMemoryError e) {
+			clearCache();
+			System.gc();
+			return new Image(Bitmap.createBitmap(rgb, width, height, (javax.microedition.lcdui.Canvas.isReduceGraphics() && !processAlpha) ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888));
+		}
 	}
 
 	public Graphics getGraphics() {

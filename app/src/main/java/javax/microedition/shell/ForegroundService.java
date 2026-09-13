@@ -54,6 +54,7 @@ public class ForegroundService extends Service {
     private String lastGcStatus = "";
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
+    private final java.util.concurrent.atomic.AtomicBoolean isCleaning = new java.util.concurrent.atomic.AtomicBoolean(false);
 
     private final Runnable updateRunnable = new Runnable() {
         @Override
@@ -150,6 +151,9 @@ public class ForegroundService extends Service {
     }
 
     private void performOverkillClean(String reason) {
+        if (!isCleaning.compareAndSet(false, true)) {
+            return;
+        }
         try {
             Image.clearCache();
             Font.clearCache();
@@ -157,20 +161,24 @@ public class ForegroundService extends Service {
 
         new Thread(() -> {
             try {
-                Graphics3D.getInstance().releaseTarget();
-            } catch (Throwable ignored) {}
+                try {
+                    Graphics3D.getInstance().releaseTarget();
+                } catch (Throwable ignored) {}
 
-            try {
-                getApplication().onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL);
-                System.runFinalization();
-                System.gc();
-                handler.post(() -> {
-                    SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-                    lastGcStatus = "[Đã dọn " + sdf.format(new Date()) + "]";
-                    updateNotification();
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Lỗi khi dọn dẹp: " + e.getMessage());
+                try {
+                    getApplication().onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL);
+                    System.runFinalization();
+                    System.gc();
+                    handler.post(() -> {
+                        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                        lastGcStatus = "[Đã dọn " + sdf.format(new Date()) + "]";
+                        updateNotification();
+                    });
+                } catch (Exception e) {
+                    Log.e(TAG, "Lỗi khi dọn dẹp: " + e.getMessage());
+                }
+            } finally {
+                isCleaning.set(false);
             }
         }, "MemoryCleaner").start();
     }

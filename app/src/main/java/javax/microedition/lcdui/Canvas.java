@@ -156,6 +156,7 @@ public abstract class Canvas extends Displayable {
 	private static boolean sleepTab;
 	private static boolean autoSleep;
 	private static boolean wasAutoSleeping;
+	private static boolean wasHidden;
 	private static long lastInteractionTime = System.currentTimeMillis();
 	private static final Handler sleepHandler = new Handler(Looper.getMainLooper());
 	private static final Runnable sleepRunnable = () -> {
@@ -223,6 +224,13 @@ public abstract class Canvas extends Displayable {
 	private Handler uiHandler;
 	private Overlay overlay;
 	private OverlayView overlayView;
+	private final Layer autoSleepLayer = canvasWrapper -> {
+		if (Canvas.this.isAutoSleeping()) {
+			canvasWrapper.setTextColor(-1);
+			canvasWrapper.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
+					displayWidth / 2.0f, displayHeight / 2.0f);
+		}
+	};
 
 	public void setOverlayView(OverlayView overlayView) {
 		this.overlayView = overlayView;
@@ -791,18 +799,29 @@ public abstract class Canvas extends Displayable {
 	private void limitFps() {
 		int currentLimit = fpsLimit;
 		boolean autoSleeping = isAutoSleeping();
-		if (sleepTab && !isShown()) {
-			currentLimit = 5;
-		} else if (autoSleep && autoSleeping) {
-			if (!wasAutoSleeping) {
-				wasAutoSleeping = true;
-				Image.clearCache();
-				Font.clearCache();
-				System.gc();
+		if (!isShown()) {
+			if (!wasHidden) {
+				wasHidden = true;
+				try {
+					Image.clearCache();
+					Font.clearCache();
+					System.gc();
+				} catch (Throwable ignored) {}
 			}
-			currentLimit = 10;
+			currentLimit = sleepTab ? 3 : 5;
 		} else {
-			wasAutoSleeping = false;
+			wasHidden = false;
+			if (autoSleep && autoSleeping) {
+				if (!wasAutoSleeping) {
+					wasAutoSleeping = true;
+					Image.clearCache();
+					Font.clearCache();
+					System.gc();
+				}
+				currentLimit = 10;
+			} else {
+				wasAutoSleeping = false;
+			}
 		}
 
 		if (currentLimit <= 0) return;
@@ -1279,13 +1298,8 @@ public abstract class Canvas extends Displayable {
 				overlayView.addLayer(fpsCounter);
 			}
 			if (overlayView != null) {
-				overlayView.addLayer(canvasWrapper -> {
-					if (Canvas.this.isAutoSleeping()) {
-						canvasWrapper.setTextColor(-1);
-						canvasWrapper.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
-								displayWidth / 2.0f, displayHeight / 2.0f);
-					}
-				});
+				overlayView.removeLayer(autoSleepLayer);
+				overlayView.addLayer(autoSleepLayer);
 				overlayView.setVisibility(true);
 			}
 		}
@@ -1305,6 +1319,7 @@ public abstract class Canvas extends Displayable {
 				}
 			}
 			if (overlayView != null) {
+				overlayView.removeLayer(autoSleepLayer);
 				overlayView.setVisibility(false);
 			}
 		}
