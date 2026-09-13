@@ -40,10 +40,16 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 
 	public SocketConnection(String host, int port) throws IOException {
 		this.socket = new Socket(host, port);
+		namod.j2me.network.NetworkTracker.registerSocket(this, this.socket, host, port);
 	}
 
 	public SocketConnection(Socket socket) {
 		this.socket = socket;
+		if (socket != null) {
+			namod.j2me.network.NetworkTracker.registerSocket(this, socket,
+					socket.getInetAddress() != null ? socket.getInetAddress().toString() : "unknown",
+					socket.getPort());
+		}
 	}
 
 	@Override
@@ -167,14 +173,13 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 
 	@Override
 	public void close() throws IOException {
-		// TODO fix differences between Java ME and Java SE
-
+		namod.j2me.network.NetworkTracker.unregisterSocket(this);
 		socket.close();
 	}
 
 	@Override
 	public InputStream openInputStream() throws IOException {
-		return socket.getInputStream();
+		return new TrackingInputStream(this, socket.getInputStream());
 	}
 
 	@Override
@@ -184,7 +189,7 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 
 	@Override
 	public OutputStream openOutputStream() throws IOException {
-		return socket.getOutputStream();
+		return new TrackingOutputStream(this, socket.getOutputStream());
 	}
 
 	@Override
@@ -192,4 +197,51 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 		return new DataOutputStream(openOutputStream());
 	}
 
+	private static class TrackingInputStream extends java.io.FilterInputStream {
+		private final Object connection;
+
+		TrackingInputStream(Object connection, InputStream in) {
+			super(in);
+			this.connection = connection;
+		}
+
+		@Override
+		public int read() throws IOException {
+			int b = super.read();
+			if (b != -1) {
+				namod.j2me.network.NetworkTracker.onBytesRead(connection, 1);
+			}
+			return b;
+		}
+
+		@Override
+		public int read(byte[] b, int off, int len) throws IOException {
+			int n = super.read(b, off, len);
+			if (n > 0) {
+				namod.j2me.network.NetworkTracker.onBytesRead(connection, n);
+			}
+			return n;
+		}
+	}
+
+	private static class TrackingOutputStream extends java.io.FilterOutputStream {
+		private final Object connection;
+
+		TrackingOutputStream(Object connection, OutputStream out) {
+			super(out);
+			this.connection = connection;
+		}
+
+		@Override
+		public void write(int b) throws IOException {
+			super.write(b);
+			namod.j2me.network.NetworkTracker.onBytesWritten(connection, 1);
+		}
+
+		@Override
+		public void write(byte[] b, int off, int len) throws IOException {
+			out.write(b, off, len);
+			namod.j2me.network.NetworkTracker.onBytesWritten(connection, len);
+		}
+	}
 }

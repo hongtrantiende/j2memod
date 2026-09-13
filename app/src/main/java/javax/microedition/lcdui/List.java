@@ -349,11 +349,30 @@ public class List extends Screen implements Choice, ItemSelector, View.OnCreateC
 		}
 	}
 
+	private final Runnable autoRefreshRunnable = new Runnable() {
+		@Override
+		public void run() {
+			if (list != null && adapter != null) {
+				adapter.notifyDataSetChanged();
+				list.postDelayed(this, 1000);
+			}
+		}
+	};
+
+	@Override
+	public void setTitle(String title) {
+		super.setTitle(title);
+		if (adapter != null) {
+			adapter.setListTitle(title);
+		}
+	}
+
 	@Override
 	public View getScreenView() {
 		Context context = getParentActivity();
 
 		adapter = new CompoundListAdapter(context, this, listType);
+		adapter.setListTitle(getTitle());
 
 		list = new ListView(context);
 		list.setAdapter(adapter);
@@ -371,11 +390,16 @@ public class List extends Screen implements Choice, ItemSelector, View.OnCreateC
 		list.setOnItemClickListener(clicklistener);
 		ViewHandler.postEvent(msgSetContextMenuListener);
 
+		list.postDelayed(autoRefreshRunnable, 1000);
+
 		return list;
 	}
 
 	@Override
 	public void clearScreenView() {
+		if (list != null) {
+			list.removeCallbacks(autoRefreshRunnable);
+		}
 		list = null;
 		adapter = null;
 	}

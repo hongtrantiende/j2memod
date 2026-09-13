@@ -37,6 +37,10 @@ public class CompoundItem {
 		return stringPart;
 	}
 
+	public Image getImage() {
+		return imagePart;
+	}
+
 	public Drawable getDrawable(int height) {
 		if (imageDrawable == null && imagePart != null) {
 			Bitmap bitmap = imagePart.getBitmap();
