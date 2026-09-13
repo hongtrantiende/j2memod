@@ -29,42 +29,16 @@
         android:stretchMode="columnWidth"
         android:visibility="gone" />
 
-    <!-- Modern Empty View -->
-    <LinearLayout
+    <TextView
         android:id="@android:id/empty"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:gravity="center"
-        android:orientation="vertical"
-        android:padding="24dp">
-
-        <ImageView
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:alpha="0.4"
-            android:src="@drawable/ic_list"
-            app:tint="?attr/textColorPrimary" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/no_data_for_display"
-            android:textColor="?attr/textColorPrimary"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:alpha="0.7"
-            android:gravity="center"
-            android:text="Nhấn nút (+) để cài đặt game JAR/JAD"
-            android:textColor="?attr/textColorSecondary"
-            android:textSize="13sp" />
-    </LinearLayout>
+        android:padding="24dp"
+        android:text="@string/no_data_for_display"
+        android:textColor="?attr/textColorSecondary"
+        android:textSize="16sp" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"
