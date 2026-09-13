@@ -102,6 +102,12 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 	protected Checkable cxForceFullscreen;
 	protected Checkable cxShowFps;
 	protected EditText tfFpsLimit;
+	protected Checkable cxGrayscale;
+	protected Checkable cxSleepTab;
+	protected Checkable cxAutoSleep;
+	protected Checkable cxReduceGraphics;
+	protected EditText tfProxyAddr;
+	protected EditText tfProxyPort;
 
 	protected EditText tfFontSizeSmall;
 	protected EditText tfFontSizeMedium;
@@ -229,6 +235,12 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 		tfVKSelFore = findViewById(R.id.tfVKSelFore);
 		tfVKSelBack = findViewById(R.id.tfVKSelBack);
 		tfVKOutline = findViewById(R.id.tfVKOutline);
+		cxGrayscale = findViewById(R.id.cxGrayscale);
+		cxSleepTab = findViewById(R.id.cxSleepTab);
+		cxAutoSleep = findViewById(R.id.cxAutoSleep);
+		cxReduceGraphics = findViewById(R.id.cxReduceGraphics);
+		tfProxyAddr = findViewById(R.id.tfProxyAddr);
+		tfProxyPort = findViewById(R.id.tfProxyPort);
 
 		fillScreenSizePresets(display.getWidth(), display.getHeight());
 
@@ -601,6 +613,12 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 		cxForceFullscreen.setChecked(params.forceFullscreen);
 		spGraphicsMode.setSelection(params.getGraphicsMode());
 		cxShowFps.setChecked(params.showFps);
+		if (cxGrayscale != null) cxGrayscale.setChecked(params.screenGrayscale);
+		if (cxSleepTab != null) cxSleepTab.setChecked(params.sleepTab);
+		if (cxAutoSleep != null) cxAutoSleep.setChecked(params.autoSleep);
+		if (cxReduceGraphics != null) cxReduceGraphics.setChecked(params.reduceGraphics);
+		if (tfProxyAddr != null && params.proxyAddr != null) tfProxyAddr.setText(params.proxyAddr);
+		if (tfProxyPort != null && params.proxyPort != null) tfProxyPort.setText(params.proxyPort);
 
 		tfFontSizeSmall.setText(Integer.toString(params.fontSizeSmall));
 		tfFontSizeMedium.setText(Integer.toString(params.fontSizeMedium));
@@ -664,6 +682,12 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 			params.forceFullscreen = cxForceFullscreen.isChecked();
 			params.showFps = cxShowFps.isChecked();
 			params.fpsLimit = parseInt(tfFpsLimit.getText().toString());
+			if (cxGrayscale != null) params.screenGrayscale = cxGrayscale.isChecked();
+			if (cxSleepTab != null) params.sleepTab = cxSleepTab.isChecked();
+			if (cxAutoSleep != null) params.autoSleep = cxAutoSleep.isChecked();
+			if (cxReduceGraphics != null) params.reduceGraphics = cxReduceGraphics.isChecked();
+			if (tfProxyAddr != null) params.proxyAddr = tfProxyAddr.getText().toString().trim();
+			if (tfProxyPort != null) params.proxyPort = tfProxyPort.getText().toString().trim();
 
 			try {
 				params.fontSizeSmall = Integer.parseInt(tfFontSizeSmall.getText().toString());
