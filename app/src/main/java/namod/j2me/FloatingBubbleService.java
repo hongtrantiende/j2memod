@@ -23,8 +23,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.Toast;
 
@@ -243,7 +245,16 @@ public class FloatingBubbleService extends Service {
         this.floatingView.setVisibility(View.GONE);
         OverlayView overlayView = (OverlayView) this.windowView.findViewById(R.id.vOverlay);
         overlayView.clearLayers();
+
+        LinearLayout commandBar = (LinearLayout) this.windowView.findViewById(R.id.floating_command_bar);
+        if (commandBar != null) {
+            commandBar.removeAllViews();
+        }
+
         if (currentDisplayable instanceof Canvas) {
+            if (commandBar != null) {
+                commandBar.setVisibility(View.GONE);
+            }
             displayableView.setBackgroundColor(0xFF000000);
             this.windowView.setBackgroundColor(0);
             frameLayout.setBackgroundColor(0);
@@ -257,7 +268,7 @@ public class FloatingBubbleService extends Service {
             displayableView.post(() -> updateCanvasLayout(frameLayout, overlayView, canvas, displayableView));
         } else {
             overlayView.setVisibility(View.GONE);
-            int color = "dark".equals(PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).getString("pref_theme", "light")) ? 0xFF212721 : 0xFFFFFFFF;
+            int color = 0xFF1A1D24;
             displayableView.setBackgroundColor(color);
             frameLayout.setBackgroundColor(color);
             this.windowView.setBackgroundColor(color);
@@ -265,6 +276,40 @@ public class FloatingBubbleService extends Service {
             displayableView.setFocusableInTouchMode(true);
             displayableView.requestFocus();
             displayableView.invalidate();
+
+            if (commandBar != null) {
+                Command[] commands = currentDisplayable.getCommands();
+                if (commands != null && commands.length > 0) {
+                    commandBar.setVisibility(View.VISIBLE);
+                    for (final Command cmd : commands) {
+                        Button btn = new Button(this);
+                        btn.setText(cmd.getAndroidLabel());
+                        btn.setTextSize(13);
+                        btn.setTextColor(0xFFFFFFFF);
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT, dpToPx(34));
+                        lp.setMargins(dpToPx(4), 0, dpToPx(4), 0);
+                        btn.setLayoutParams(lp);
+
+                        int cmdType = cmd.getCommandType();
+                        if (cmdType == Command.OK || cmdType == Command.SCREEN) {
+                            btn.setBackgroundResource(R.drawable.bg_btn_ok);
+                            btn.setTypeface(null, android.graphics.Typeface.BOLD);
+                        } else if (cmdType == Command.CANCEL || cmdType == Command.BACK || cmdType == Command.EXIT) {
+                            btn.setBackgroundResource(R.drawable.bg_btn_cancel);
+                        } else {
+                            btn.setBackgroundResource(R.drawable.bg_btn_cmd);
+                        }
+
+                        btn.setOnClickListener(v -> {
+                            currentDisplayable.menuItemSelected(cmd.hashCode());
+                        });
+                        commandBar.addView(btn);
+                    }
+                } else {
+                    commandBar.setVisibility(View.GONE);
+                }
+            }
         }
         this.windowView.requestLayout();
     }
@@ -287,11 +332,9 @@ public class FloatingBubbleService extends Service {
     private void setupWindowListeners() {
         View tabBtn = this.windowView.findViewById(R.id.btn_tab_menu);
         View moveHandle = this.windowView.findViewById(R.id.move_handle);
-        View minimizeBtn = this.windowView.findViewById(R.id.btn_minimize);
         View resizeHandle = this.windowView.findViewById(R.id.resize_handle);
         View closeBtn = this.windowView.findViewById(R.id.close_window);
         View maxBtn = this.windowView.findViewById(R.id.maximize_window);
-        View menuBtn = this.windowView.findViewById(R.id.menu_window);
 
         if (tabBtn != null) {
             tabBtn.setOnClickListener(v -> triggerTabMenu());
@@ -306,10 +349,6 @@ public class FloatingBubbleService extends Service {
                 }
                 return true;
             });
-        }
-
-        if (minimizeBtn != null) {
-            minimizeBtn.setOnClickListener(v -> hideFloatingWindow());
         }
 
         moveHandle.setOnTouchListener(new View.OnTouchListener() {
@@ -391,7 +430,6 @@ public class FloatingBubbleService extends Service {
         });
 
         closeBtn.setOnClickListener(this::closeWindowClicked);
-        menuBtn.setOnClickListener(this::showJ2MEMenu);
         maxBtn.setOnClickListener(this::maximizeWindowClicked);
     }
 

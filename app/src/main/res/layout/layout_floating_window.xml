@@ -58,41 +58,23 @@
                 android:textSize="11sp" />
         </FrameLayout>
 
-        <!-- Minimize button (back to floating bubble) -->
-        <ImageView
-            android:id="@+id/btn_minimize"
-            android:layout_width="32dp"
-            android:layout_height="fill_parent"
-            android:background="?android:selectableItemBackground"
-            android:padding="7dp"
-            android:src="@drawable/ic_minimize" />
-
-        <!-- J2ME Menu button -->
-        <ImageView
-            android:id="@+id/menu_window"
-            android:layout_width="32dp"
-            android:layout_height="fill_parent"
-            android:background="?android:selectableItemBackground"
-            android:padding="7dp"
-            android:src="@android:drawable/ic_menu_more" />
-
-        <!-- Maximize button -->
+        <!-- Maximize button (Full screen) -->
         <ImageView
             android:id="@+id/maximize_window"
-            android:layout_width="32dp"
+            android:layout_width="34dp"
             android:layout_height="fill_parent"
             android:background="?android:selectableItemBackground"
             android:padding="7dp"
             android:src="@android:drawable/ic_menu_zoom" />
 
-        <!-- Close button -->
+        <!-- Minimize button (back to floating bubble) -->
         <ImageView
             android:id="@+id/close_window"
-            android:layout_width="32dp"
+            android:layout_width="34dp"
             android:layout_height="fill_parent"
             android:background="?android:selectableItemBackground"
             android:padding="7dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel" />
+            android:src="@drawable/ic_minimize" />
     </LinearLayout>
 
     <!-- Game Screen & Overlay Container -->
@@ -123,4 +105,16 @@
             android:padding="4dp"
             android:src="@drawable/ic_resize_corner" />
     </FrameLayout>
+
+    <!-- Bottom Command Bar for Non-Canvas Screens (TextBox, Form, List commands) -->
+    <LinearLayout
+        android:id="@+id/floating_command_bar"
+        android:layout_width="fill_parent"
+        android:layout_height="46dp"
+        android:background="#212830"
+        android:gravity="center_vertical|end"
+        android:orientation="horizontal"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:visibility="gone" />
 </LinearLayout>

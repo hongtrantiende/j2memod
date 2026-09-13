@@ -204,6 +204,13 @@ class TextFieldImpl {
 				textview.setLayoutParams(new LinearLayout.LayoutParams(
 						LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 				textview.setGravity(Gravity.TOP);
+				if (Displayable.isFloatingMode) {
+					textview.setTextColor(0xFFFFFFFF);
+					textview.setHintTextColor(0x88FFFFFF);
+					textview.setBackgroundColor(0xFF1E242B);
+					int pad = (int) (12 * context.getResources().getDisplayMetrics().density);
+					textview.setPadding(pad, pad, pad, pad);
+				}
 			}
 		}
 		return textview;
