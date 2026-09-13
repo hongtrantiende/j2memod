@@ -23,11 +23,14 @@ import android.text.InputFilter;
 import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 
 import javax.microedition.lcdui.event.SimpleEvent;
+
+import namod.j2me.FloatingBubbleService;
 
 class TextFieldImpl {
 	private EditText textview;
@@ -175,7 +178,18 @@ class TextFieldImpl {
 
 	EditText getView(Context context, Item item) {
 		if (textview == null) {
-			textview = new EditText(context);
+			textview = new EditText(context) {
+				@Override
+				public boolean onKeyPreIme(int keyCode, KeyEvent event) {
+					if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
+						FloatingBubbleService fbs = FloatingBubbleService.getInstance();
+						if (fbs != null) {
+							fbs.hideSoftKeyboard();
+						}
+					}
+					return super.onKeyPreIme(keyCode, event);
+				}
+			};
 
 			setMaxSize(maxSize);
 			setConstraints(constraints);

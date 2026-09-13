@@ -23,12 +23,15 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.Toast;
+
+import namod.j2me.network.TabStatusManager;
 
 import androidx.core.app.NotificationCompat;
 import androidx.preference.PreferenceManager;
@@ -277,41 +280,90 @@ public class FloatingBubbleService extends Service {
             displayableView.requestFocus();
             displayableView.invalidate();
 
-            if (commandBar != null) {
-                Command[] commands = currentDisplayable.getCommands();
-                if (commands != null && commands.length > 0) {
-                    commandBar.setVisibility(View.VISIBLE);
-                    for (final Command cmd : commands) {
-                        Button btn = new Button(this);
-                        btn.setText(cmd.getAndroidLabel());
-                        btn.setTextSize(13);
-                        btn.setTextColor(0xFFFFFFFF);
-                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                                ViewGroup.LayoutParams.WRAP_CONTENT, dpToPx(34));
-                        lp.setMargins(dpToPx(4), 0, dpToPx(4), 0);
-                        btn.setLayoutParams(lp);
+            boolean isTabMode = false;
+            if (currentDisplayable instanceof javax.microedition.lcdui.List) {
+                javax.microedition.lcdui.List list = (javax.microedition.lcdui.List) currentDisplayable;
+                String title = list.getTitle();
+                String firstItem = list.size() > 0 ? list.getString(0) : null;
+                if (TabStatusManager.isTabMenu(title, firstItem)) {
+                    isTabMode = true;
+                }
+            }
 
-                        int cmdType = cmd.getCommandType();
-                        if (cmdType == Command.OK || cmdType == Command.SCREEN) {
-                            btn.setBackgroundResource(R.drawable.bg_btn_ok);
-                            btn.setTypeface(null, android.graphics.Typeface.BOLD);
-                        } else if (cmdType == Command.CANCEL || cmdType == Command.BACK || cmdType == Command.EXIT) {
-                            btn.setBackgroundResource(R.drawable.bg_btn_cancel);
-                        } else {
-                            btn.setBackgroundResource(R.drawable.bg_btn_cmd);
+            if (commandBar != null) {
+                if (isTabMode) {
+                    commandBar.setVisibility(View.GONE);
+                } else {
+                    Command[] commands = currentDisplayable.getCommands();
+                    if (commands != null && commands.length > 0) {
+                        commandBar.setVisibility(View.VISIBLE);
+
+                        if (currentDisplayable instanceof javax.microedition.lcdui.TextBox) {
+                            Button hideKbBtn = new Button(this);
+                            hideKbBtn.setText("Ẩn phím");
+                            hideKbBtn.setTextSize(12);
+                            hideKbBtn.setTextColor(0xFFB0BEC5);
+                            hideKbBtn.setBackgroundResource(R.drawable.bg_btn_cmd);
+                            LinearLayout.LayoutParams lpKb = new LinearLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.WRAP_CONTENT, dpToPx(34));
+                            lpKb.setMargins(dpToPx(4), 0, dpToPx(4), 0);
+                            hideKbBtn.setLayoutParams(lpKb);
+                            hideKbBtn.setOnClickListener(v -> hideSoftKeyboard());
+                            commandBar.addView(hideKbBtn);
                         }
 
-                        btn.setOnClickListener(v -> {
-                            currentDisplayable.menuItemSelected(cmd.hashCode());
-                        });
-                        commandBar.addView(btn);
+                        for (final Command cmd : commands) {
+                            Button btn = new Button(this);
+                            btn.setText(cmd.getAndroidLabel());
+                            btn.setTextSize(13);
+                            btn.setTextColor(0xFFFFFFFF);
+                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.WRAP_CONTENT, dpToPx(34));
+                            lp.setMargins(dpToPx(4), 0, dpToPx(4), 0);
+                            btn.setLayoutParams(lp);
+
+                            int cmdType = cmd.getCommandType();
+                            if (cmdType == Command.OK || cmdType == Command.SCREEN) {
+                                btn.setBackgroundResource(R.drawable.bg_btn_ok);
+                                btn.setTypeface(null, android.graphics.Typeface.BOLD);
+                            } else if (cmdType == Command.CANCEL || cmdType == Command.BACK || cmdType == Command.EXIT) {
+                                btn.setBackgroundResource(R.drawable.bg_btn_cancel);
+                            } else {
+                                btn.setBackgroundResource(R.drawable.bg_btn_cmd);
+                            }
+
+                            btn.setOnClickListener(v -> {
+                                hideSoftKeyboard();
+                                currentDisplayable.menuItemSelected(cmd.hashCode());
+                            });
+                            commandBar.addView(btn);
+                        }
+                    } else {
+                        commandBar.setVisibility(View.GONE);
                     }
-                } else {
-                    commandBar.setVisibility(View.GONE);
                 }
             }
         }
         this.windowView.requestLayout();
+    }
+
+    public void hideSoftKeyboard() {
+        try {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null && this.windowView != null) {
+                View focus = this.windowView.findFocus();
+                if (focus != null) {
+                    imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+                    focus.clearFocus();
+                }
+                imm.hideSoftInputFromWindow(this.windowView.getWindowToken(), 0);
+                View moveHandle = this.windowView.findViewById(R.id.move_handle);
+                if (moveHandle != null) {
+                    moveHandle.setFocusableInTouchMode(true);
+                    moveHandle.requestFocus();
+                }
+            }
+        } catch (Throwable ignored) {}
     }
 
     private void triggerTabMenu() {
@@ -333,8 +385,13 @@ public class FloatingBubbleService extends Service {
         View tabBtn = this.windowView.findViewById(R.id.btn_tab_menu);
         View moveHandle = this.windowView.findViewById(R.id.move_handle);
         View resizeHandle = this.windowView.findViewById(R.id.resize_handle);
+        View hideKeyBtn = this.windowView.findViewById(R.id.btn_hide_keyboard);
         View closeBtn = this.windowView.findViewById(R.id.close_window);
         View maxBtn = this.windowView.findViewById(R.id.maximize_window);
+
+        if (hideKeyBtn != null) {
+            hideKeyBtn.setOnClickListener(v -> hideSoftKeyboard());
+        }
 
         if (tabBtn != null) {
             tabBtn.setOnClickListener(v -> triggerTabMenu());
@@ -361,6 +418,7 @@ public class FloatingBubbleService extends Service {
             public boolean onTouch(View view, MotionEvent motionEvent) {
                 int action = motionEvent.getAction();
                 if (action == MotionEvent.ACTION_DOWN) {
+                    FloatingBubbleService.this.hideSoftKeyboard();
                     this.initialX = FloatingBubbleService.this.windowParams.x;
                     this.initialY = FloatingBubbleService.this.windowParams.y;
                     this.initialTouchX = motionEvent.getRawX();
