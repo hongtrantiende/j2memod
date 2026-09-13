@@ -84,9 +84,18 @@ public class FileUtils {
 	}
 
 	public static LinkedHashMap<String, String> loadManifest(File mf) {
+		try {
+			return loadManifest(new FileInputStream(mf));
+		} catch (Throwable t) {
+			Log.e(TAG, "getAppProperty() will not be available due to " + t.toString());
+			return new LinkedHashMap<>();
+		}
+	}
+
+	public static LinkedHashMap<String, String> loadManifest(InputStream is) {
 		LinkedHashMap<String, String> params = new LinkedHashMap<>();
 		try {
-			BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(mf)));
+			BufferedReader br = new BufferedReader(new InputStreamReader(is));
 			String line;
 			int index;
 			while ((line = br.readLine()) != null) {
@@ -100,7 +109,9 @@ public class FileUtils {
 					while (iter.hasNext()) {
 						entry = iter.next();
 					}
-					params.put(entry.getKey(), entry.getValue() + line.substring(1));
+					if (entry != null) {
+						params.put(entry.getKey(), entry.getValue() + line.substring(1));
+					}
 				}
 			}
 			br.close();

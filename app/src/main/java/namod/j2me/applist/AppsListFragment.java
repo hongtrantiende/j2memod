@@ -230,7 +230,12 @@ public class AppsListFragment extends Fragment {
 		dialog.setCancelable(false);
 		dialog.setMessage(getText(R.string.converting_message));
 		dialog.setTitle(R.string.converting_wait);
-		converter.convert(path, batchDex, batchSize, null)
+		converter.convert(path, batchDex, batchSize, status -> {
+					Activity a = getActivity();
+					if (a != null) {
+						a.runOnUiThread(() -> dialog.setMessage(getText(R.string.converting_message) + "\n" + status));
+					}
+				})
 				.subscribeOn(Schedulers.computation())
 				.observeOn(AndroidSchedulers.mainThread())
 				.subscribe(new SingleObserver<JarConverter.ConversionResult>() {

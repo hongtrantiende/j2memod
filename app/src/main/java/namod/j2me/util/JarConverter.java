@@ -144,18 +144,6 @@ public class JarConverter {
 		return null;
 	}
 
-	private void collectClassFiles(File dir, List<String> classFiles) {
-		File[] files = dir.listFiles();
-		if (files == null) return;
-		for (File f : files) {
-			if (f.isDirectory()) {
-				collectClassFiles(f, classFiles);
-			} else if (f.getName().endsWith(".class")) {
-				classFiles.add(f.getAbsolutePath());
-			}
-		}
-	}
-
 	public Single<ConversionResult> convert(final String path) {
 		return convert(path, false, 50, null);
 	}
@@ -203,21 +191,39 @@ public class JarConverter {
 				deleteTemp();
 				throw new ConverterException("Can't patch", e);
 			}
-			try {
-				ZipUtils.unzip(patchedJar, tmpDir);
-			} catch (IOException e) {
-				deleteTemp();
-				throw new ConverterException("Invalid jar", e);
-			}
 
-			if (!jadInstall) {
-				conf = findManifest(tmpDir);
-				if (conf == null) {
+			LinkedHashMap<String, String> params = null;
+			if (jadInstall) {
+				params = FileUtils.loadManifest(conf);
+			} else {
+				try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(patchedJar)) {
+					java.util.zip.ZipEntry mfEntry = zf.getEntry("META-INF/MANIFEST.MF");
+					if (mfEntry == null) {
+						java.util.Enumeration<? extends java.util.zip.ZipEntry> en = zf.entries();
+						while (en.hasMoreElements()) {
+							java.util.zip.ZipEntry e = en.nextElement();
+							if (e.getName().equalsIgnoreCase("META-INF/MANIFEST.MF")) {
+								mfEntry = e;
+								break;
+							}
+						}
+					}
+					if (mfEntry != null) {
+						try (InputStream is = zf.getInputStream(mfEntry)) {
+							params = FileUtils.loadManifest(is);
+						}
+					}
+				} catch (IOException e) {
 					deleteTemp();
-					throw new ConverterException("Manifest not found");
+					throw new ConverterException("Invalid jar", e);
 				}
 			}
-			LinkedHashMap<String, String> params = FileUtils.loadManifest(conf);
+
+			if (params == null) {
+				deleteTemp();
+				throw new ConverterException("Manifest not found");
+			}
+
 			appDirPath = params.get("MIDlet-Name");
 			if (appDirPath == null) {
 				deleteTemp();
@@ -233,50 +239,146 @@ public class JarConverter {
 			appConverted.mkdirs();
 			Log.d(TAG, "appConverted=" + appConverted.getPath());
 
+			String imagePathFromManifest = AppUtils.getImagePathFromManifest(params);
+
 			try {
+				DxContext dxContext = new DxContext(new OutputStream() {
+					private StringBuilder sb = new StringBuilder();
+
+					@Override
+					public void write(int b) {
+						if (b != '\n' && b != '\r') {
+							sb.append((char) b);
+							return;
+						}
+						String line = sb.toString();
+						if (line.startsWith("processing ") && line.endsWith("...")) {
+							String name = line.substring(11, line.length() - 3);
+							if (callback != null) {
+								callback.onProgressUpdate(name);
+							}
+						}
+						sb.setLength(0);
+					}
+				}, System.err);
+
 				if (batchDex && batchSize > 0) {
-					List<String> classFiles = new ArrayList<>();
-					collectClassFiles(tmpDir, classFiles);
+					ArrayList<String> classFiles = new ArrayList<>();
+					try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(patchedJar)) {
+						if (imagePathFromManifest != null) {
+							java.util.zip.ZipEntry iconEntry = zipFile.getEntry(imagePathFromManifest);
+							if (iconEntry != null) {
+								File iconTmp = new File(tmpDir, "icon.png");
+								try (InputStream is = zipFile.getInputStream(iconEntry);
+								     FileOutputStream fos = new FileOutputStream(iconTmp)) {
+									IOUtils.copy(is, fos);
+								}
+							}
+						}
+						java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zipFile.entries();
+						int classIndex = 0;
+						while (entries.hasMoreElements()) {
+							java.util.zip.ZipEntry next = entries.nextElement();
+							if (next.getName().endsWith(".class")) {
+								classIndex++;
+								File classFile = new File(tmpDir, "c" + classIndex + ".class");
+								try (InputStream is = zipFile.getInputStream(next);
+								     FileOutputStream fos = new FileOutputStream(classFile)) {
+									IOUtils.copy(is, fos);
+								}
+								classFiles.add(classFile.getAbsolutePath());
+							}
+						}
+					}
+
 					int numBatches = (classFiles.size() + batchSize - 1) / batchSize;
-					DxContext dxContext = new DxContext();
 					for (int i = 0; i < numBatches; i++) {
 						int from = i * batchSize;
 						int to = Math.min(from + batchSize, classFiles.size());
-						List<String> sub = classFiles.subList(from, to);
+						List<String> subList = classFiles.subList(from, to);
 						String outDex = (i == 0) ? Config.MIDLET_DEX_FILE : ("/converted" + (i + 1) + ".dex");
 						ArrayList<String> args = new ArrayList<>();
+						args.add("--verbose");
 						args.add("--no-optimize");
 						args.add("--no-strict");
 						args.add("--output=" + appConverted.getPath() + outDex);
-						args.addAll(sub);
+						args.addAll(subList);
 
 						Main.Arguments arguments = new Main.Arguments(dxContext);
 						arguments.parse(args.toArray(new String[0]));
-						new Main(dxContext).runDx(arguments);
+						int res = new Main(dxContext).runDx(arguments);
+						if (res != 0) {
+							throw new ConverterException("Dex batch " + (i + 1) + " failed with code " + res);
+						}
 					}
 				} else {
-					Main.main(new String[]{
-							"--no-optimize", "--output=" + appConverted.getPath()
-							+ Config.MIDLET_DEX_FILE, patchedJar.getAbsolutePath()});
+					try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(patchedJar)) {
+						if (imagePathFromManifest != null) {
+							java.util.zip.ZipEntry iconEntry = zipFile.getEntry(imagePathFromManifest);
+							if (iconEntry != null) {
+								File iconTmp = new File(tmpDir, "icon.png");
+								try (InputStream is = zipFile.getInputStream(iconEntry);
+								     FileOutputStream fos = new FileOutputStream(iconTmp)) {
+									IOUtils.copy(is, fos);
+								}
+							}
+						}
+					}
+
+					ArrayList<String> args = new ArrayList<>();
+					args.add("--verbose");
+					args.add("--no-optimize");
+					args.add("--output=" + appConverted.getPath() + Config.MIDLET_DEX_FILE);
+					args.add(patchedJar.getAbsolutePath());
+					Main.Arguments arguments = new Main.Arguments(dxContext);
+					arguments.parse(args.toArray(new String[0]));
+					int res = new Main(dxContext).runDx(arguments);
+					if (res != 0) {
+						throw new ConverterException("Dex conversion failed with code " + res);
+					}
 				}
 			} catch (Throwable e) {
 				deleteTemp();
 				FileUtils.deleteDirectory(appConverted);
-				throw new ConverterException("Can't convert", e);
+				throw new ConverterException("Can't convert: " + e.getMessage(), e);
 			}
 
 			try {
-				FileUtils.copyFileUsingChannel(conf, new File(appConverted, Config.MIDLET_MANIFEST_FILE));
-				File image = new File(tmpDir, AppUtils.getImagePathFromManifest(params));
-				FileUtils.copyFileUsingChannel(image, new File(appConverted, Config.MIDLET_ICON_FILE));
+				if (jadInstall) {
+					FileUtils.copyFileUsingChannel(conf, new File(appConverted, Config.MIDLET_MANIFEST_FILE));
+				} else {
+					try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(patchedJar)) {
+						java.util.zip.ZipEntry entry = zipFile.getEntry("META-INF/MANIFEST.MF");
+						if (entry == null) {
+							java.util.Enumeration<? extends java.util.zip.ZipEntry> en = zipFile.entries();
+							while (en.hasMoreElements()) {
+								java.util.zip.ZipEntry e = en.nextElement();
+								if (e.getName().equalsIgnoreCase("META-INF/MANIFEST.MF")) {
+									entry = e;
+									break;
+								}
+							}
+						}
+						if (entry != null) {
+							try (InputStream is = zipFile.getInputStream(entry);
+							     FileOutputStream fos = new FileOutputStream(new File(appConverted, Config.MIDLET_MANIFEST_FILE))) {
+								IOUtils.copy(is, fos);
+							}
+						}
+					}
+				}
+				File iconTmp = new File(tmpDir, "icon.png");
+				if (iconTmp.exists()) {
+					FileUtils.copyFileUsingChannel(iconTmp, new File(appConverted, Config.MIDLET_ICON_FILE));
+				}
 			} catch (IOException | NullPointerException e) {
 				e.printStackTrace();
-			} catch (ArrayIndexOutOfBoundsException e) {
-				deleteTemp();
-				FileUtils.deleteDirectory(appConverted);
-				throw new ConverterException("Invalid manifest");
 			}
-			FileUtils.copyFileUsingChannel(inputJar, new File(appConverted, Config.MIDLET_RES_FILE));
+			try {
+				FileUtils.copyFileUsingChannel(inputJar, new File(appConverted, Config.MIDLET_RES_FILE));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 			deleteTemp();
 			long duration = Math.max(1, (System.currentTimeMillis() - startTime) / 1000);
 			emitter.onSuccess(new ConversionResult(appDirPath, duration));

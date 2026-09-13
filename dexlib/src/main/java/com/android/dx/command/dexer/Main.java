@@ -466,16 +466,11 @@ public class Main {
         }
 
         try {
-            // modify byte-code with ASM-java
-            bytes = AndroidProducer.instrument(bytes, name);
-
             new DirectClassFileConsumer(name, bytes, null).call(
                     new ClassParserTask(name, bytes).call());
         } catch (ParseException ex) {
             // handled in FileBytesConsumer
             throw ex;
-        } catch(IllegalArgumentException e) {
-            e.printStackTrace();
         } catch(Exception ex) {
             throw new RuntimeException("Exception parsing classes", ex);
         }
