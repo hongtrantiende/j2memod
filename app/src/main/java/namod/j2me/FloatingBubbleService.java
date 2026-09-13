@@ -282,12 +282,19 @@ public class FloatingBubbleService extends Service {
 
             boolean isTabMode = false;
             if (currentDisplayable instanceof javax.microedition.lcdui.List) {
-                javax.microedition.lcdui.List list = (javax.microedition.lcdui.List) currentDisplayable;
-                String title = list.getTitle();
-                String firstItem = list.size() > 0 ? list.getString(0) : null;
-                if (TabStatusManager.isTabMenu(title, firstItem)) {
-                    isTabMode = true;
-                }
+                try {
+                    javax.microedition.lcdui.List list = (javax.microedition.lcdui.List) currentDisplayable;
+                    String title = list.getTitle();
+                    String firstItem = null;
+                    try {
+                        if (list.size() > 0) {
+                            firstItem = list.getString(0);
+                        }
+                    } catch (Throwable ignored) {}
+                    if (TabStatusManager.isTabMenu(title, firstItem)) {
+                        isTabMode = true;
+                    }
+                } catch (Throwable ignored) {}
             }
 
             if (commandBar != null) {

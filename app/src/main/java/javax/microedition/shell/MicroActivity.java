@@ -107,6 +107,7 @@ public class MicroActivity extends AppCompatActivity {
 		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 		setTheme(sp.getString("pref_theme", "light"));
 		super.onCreate(savedInstanceState);
+		Displayable.isFloatingMode = false;
 		ContextHolder.setCurrentActivity(this);
 		setContentView(R.layout.activity_micro);
 		OverlayView overlayView = findViewById(R.id.vOverlay);
@@ -179,11 +180,24 @@ public class MicroActivity extends AppCompatActivity {
 	@Override
 	public void onResume() {
 		super.onResume();
+		Displayable.isFloatingMode = false;
 		Intent intent = new Intent(this, FloatingBubbleService.class);
 		intent.setAction("ACTION_HIDE_WINDOW");
 		startService(intent);
 		visible = true;
 		MidletThread.resumeApp();
+		if (current != null) {
+			setCurrent(current);
+		}
+	}
+
+	@Override
+	protected void onNewIntent(Intent intent) {
+		super.onNewIntent(intent);
+		Displayable.isFloatingMode = false;
+		if (current != null) {
+			setCurrent(current);
+		}
 	}
 
 	@Override
@@ -295,15 +309,25 @@ public class MicroActivity extends AppCompatActivity {
 	private SimpleEvent msgSetCurrent = new SimpleEvent() {
 		@Override
 		public void process() {
-			current.clearDisplayableView();
-			if (Displayable.isFloatingMode) {
+			if (visible) {
+				Displayable.isFloatingMode = false;
+			}
+			if (Displayable.isFloatingMode && !visible) {
+				current.clearDisplayableView();
 				Intent intent = new Intent(MicroActivity.this, FloatingBubbleService.class);
 				intent.setAction("ACTION_UPDATE_DISPLAYABLE");
 				startService(intent);
 				return;
 			}
-			layout.removeAllViews();
-			layout.addView(current.getDisplayableView());
+			current.clearDisplayableView();
+			View displayableView = current.getDisplayableView();
+			if (displayableView != null) {
+				if (displayableView.getParent() != null) {
+					((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
+				}
+				layout.removeAllViews();
+				layout.addView(displayableView);
+			}
 			invalidateOptionsMenu();
 			ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
 			LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) toolbar.getLayoutParams();

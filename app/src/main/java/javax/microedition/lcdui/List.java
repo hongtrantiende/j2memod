@@ -370,11 +370,16 @@ public class List extends Screen implements Choice, ItemSelector, View.OnCreateC
 	@Override
 	public View getScreenView() {
 		Context context = getParentActivity();
+		if (context == null) {
+			context = javax.microedition.util.ContextHolder.getAppContext();
+		}
 
 		adapter = new CompoundListAdapter(context, this, listType);
 		adapter.setListTitle(getTitle());
 
 		list = new ListView(context);
+		list.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+				android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
 		list.setAdapter(adapter);
 
 		int size = selected.size();
