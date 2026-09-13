@@ -58,6 +58,7 @@ public class EmulatorApplication extends Application {
 	@Override
 	public void attachBaseContext(Context context) {
 		super.attachBaseContext(context);
+		namod.j2me.util.AppUtils.initTheme(context);
 		ConsoleOutput.init();
 		ConsoleOutput.clear();
 		ContextHolder.setApplication(this);

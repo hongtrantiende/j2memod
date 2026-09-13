@@ -9,12 +9,30 @@
     <string-array name="pref_theme_entries" tools:ignore="InconsistentArrays">
         <item>@string/pref_theme_light</item>
         <item>@string/pref_theme_night</item>
-        <item>@string/pref_theme_auto_time</item>
+        <item>@string/pref_theme_system</item>
     </string-array>
     <string-array name="pref_theme_values" translatable="false" tools:ignore="InconsistentArrays">
         <item>light</item>
         <item>dark</item>
-        <item>auto-time</item>
+        <item>system</item>
+    </string-array>
+    <string-array name="pref_theme_accent_entries">
+        <item>Ngọc Lục Bảo (Legado Emerald)</item>
+        <item>Xanh Biển (Ocean Blue)</item>
+        <item>Tím Hoàng Gia (Deep Purple)</item>
+        <item>Đỏ Cam (Sunset Orange)</item>
+        <item>Hồng Sakura (Cherry Pink)</item>
+        <item>Xanh Rừng (Forest Teal)</item>
+        <item>Vàng Hổ Phách (Amber Gold)</item>
+    </string-array>
+    <string-array name="pref_theme_accent_values" translatable="false">
+        <item>#00C896</item>
+        <item>#2196F3</item>
+        <item>#7C3AED</item>
+        <item>#FF5722</item>
+        <item>#EC4899</item>
+        <item>#00897B</item>
+        <item>#F59E0B</item>
     </string-array>
     <string-array name="pref_app_sort_entries">
         <item>@string/pref_app_sort_name</item>

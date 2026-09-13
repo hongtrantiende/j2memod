@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--dark theme colors-->
-    <color name="primary">#262e37</color>
-    <color name="primary_dark">#20272f</color>
-    <color name="accent">#0099ff</color>
-    <color name="background">#20272f</color>
-    <color name="text_primary">#ffffff</color>
-    <color name="text_secondary">#dedede</color>
-    <color name="btn_bg_normal">#0099ff</color>
-    <color name="btn_bg_pressed">#005D8C</color>
-    <color name="config_card">#262e37</color>
+    <!-- Dark / AMOLED theme colors (Legado Style) -->
+    <color name="primary">#101318</color>
+    <color name="primary_dark">#000000</color>
+    <color name="accent">#00C896</color>
+    <color name="background">#000000</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#8E9AA8</color>
+    <color name="btn_bg_normal">#00C896</color>
+    <color name="btn_bg_pressed">#009E77</color>
+    <color name="config_card">#181B22</color>
+    <color name="card_stroke">#2C3545</color>
+    <color name="card_bg">#181B22</color>
 
     <color name="nnf_separator_color">@color/nnf_dark_separator_color</color>
 </resources>

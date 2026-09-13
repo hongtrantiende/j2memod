@@ -7,17 +7,21 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Process;
+import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,9 +33,12 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import namod.j2me.applist.AppItem;
 import namod.j2me.network.TabStatusManager;
+import namod.j2me.util.AppUtils;
 
 import androidx.core.app.NotificationCompat;
 import androidx.preference.PreferenceManager;
@@ -138,7 +145,8 @@ public class FloatingBubbleService extends Service {
     }
 
     private void createFloatingWindow() {
-        this.windowView = LayoutInflater.from(this).inflate(R.layout.layout_floating_window, null);
+        ContextThemeWrapper themeContext = new ContextThemeWrapper(this, R.style.AppTheme);
+        this.windowView = LayoutInflater.from(themeContext).inflate(R.layout.layout_floating_window, null);
         int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, 0);
         int width = sharedPreferences.getInt(KEY_WIDTH, dpToPx(320));
@@ -271,10 +279,9 @@ public class FloatingBubbleService extends Service {
             displayableView.post(() -> updateCanvasLayout(frameLayout, overlayView, canvas, displayableView));
         } else {
             overlayView.setVisibility(View.GONE);
-            int color = 0xFF1A1D24;
-            displayableView.setBackgroundColor(color);
-            frameLayout.setBackgroundColor(color);
-            this.windowView.setBackgroundColor(color);
+            displayableView.setBackgroundColor(0);
+            frameLayout.setBackgroundColor(0);
+            this.windowView.setBackgroundColor(0);
             displayableView.setFocusable(true);
             displayableView.setFocusableInTouchMode(true);
             displayableView.requestFocus();
@@ -390,11 +397,28 @@ public class FloatingBubbleService extends Service {
     @SuppressLint({"ClickableViewAccessibility"})
     private void setupWindowListeners() {
         View tabBtn = this.windowView.findViewById(R.id.btn_tab_menu);
+        ImageView imgTabIcon = this.windowView.findViewById(R.id.img_tab_icon);
+        TextView tvTabText = this.windowView.findViewById(R.id.tv_tab_text);
         View moveHandle = this.windowView.findViewById(R.id.move_handle);
         View resizeHandle = this.windowView.findViewById(R.id.resize_handle);
         View hideKeyBtn = this.windowView.findViewById(R.id.btn_hide_keyboard);
         View closeBtn = this.windowView.findViewById(R.id.close_window);
         View maxBtn = this.windowView.findViewById(R.id.maximize_window);
+
+        int accentColor = AppUtils.getAccentColor(this);
+        if (tabBtn != null) {
+            GradientDrawable tabBg = new GradientDrawable();
+            tabBg.setCornerRadius(dpToPx(13));
+            tabBg.setColor(Color.argb(55, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor)));
+            tabBg.setStroke(dpToPx(1), Color.argb(130, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor)));
+            tabBtn.setBackground(tabBg);
+        }
+        if (tvTabText != null) {
+            tvTabText.setTextColor(accentColor);
+        }
+        if (imgTabIcon != null) {
+            imgTabIcon.setImageTintList(ColorStateList.valueOf(accentColor));
+        }
 
         if (hideKeyBtn != null) {
             hideKeyBtn.setOnClickListener(v -> hideSoftKeyboard());
@@ -550,7 +574,8 @@ public class FloatingBubbleService extends Service {
             Log.e("FloatingBubbleService", "Failed startForeground", t);
         }
 
-        this.floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_bubble, null);
+        ContextThemeWrapper themeContext = new ContextThemeWrapper(this, R.style.AppTheme);
+        this.floatingView = LayoutInflater.from(themeContext).inflate(R.layout.layout_floating_bubble, null);
         int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
         WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(-2, -2, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, -3);
         this.params = layoutParams;
@@ -559,7 +584,7 @@ public class FloatingBubbleService extends Service {
         layoutParams.y = 100;
         this.windowManager.addView(this.floatingView, layoutParams);
 
-        this.removeView = LayoutInflater.from(this).inflate(R.layout.layout_remove_bubble, null);
+        this.removeView = LayoutInflater.from(themeContext).inflate(R.layout.layout_remove_bubble, null);
         WindowManager.LayoutParams layoutParams2 = new WindowManager.LayoutParams(-1, -2, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, -3);
         this.removeParams = layoutParams2;
         layoutParams2.gravity = 81;
@@ -573,11 +598,29 @@ public class FloatingBubbleService extends Service {
             imageView.setOutlineProvider(new ViewOutlineProvider() {
                 @Override
                 public void getOutline(View view, Outline outline) {
-                    outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dpToPx(12));
                 }
             });
             imageView.setClipToOutline(true);
         }
+        try {
+            MicroActivity activity = ContextHolder.getActivity();
+            if (activity != null) {
+                String appPath = activity.getIntent().getStringExtra(MainActivity.APP_PATH_KEY);
+                if (appPath != null) {
+                    AppItem appItem = AppUtils.getApp(appPath);
+                    if (appItem != null) {
+                        java.io.File iconFile = new java.io.File(appItem.getImagePathExt());
+                        if (iconFile.isFile()) {
+                            android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(iconFile.getAbsolutePath());
+                            if (bmp != null) {
+                                imageView.setImageBitmap(bmp);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
         imageView.setOnTouchListener(new BubbleTouchListener());
     }
 

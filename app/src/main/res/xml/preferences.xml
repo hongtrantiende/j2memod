@@ -2,31 +2,59 @@
 <androidx.preference.PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <ListPreference
-        android:defaultValue="light"
-        android:entries="@array/pref_theme_entries"
-        android:entryValues="@array/pref_theme_values"
-        android:icon="@drawable/ic_setting_theme"
-        android:key="pref_theme"
-        android:summary="@string/pref_requires_restart_summary"
-        android:title="@string/pref_theme_title" />
-    <SwitchPreferenceCompat
-        android:defaultValue="false"
-        android:icon="@drawable/ic_setting_enable_action_bar"
-        android:key="pref_actionbar_switch"
-        android:summary="@string/pref_enable_actionbar_summary"
-        android:title="@string/pref_enable_actionbar_title" />
-    <SwitchPreferenceCompat
-        android:defaultValue="false"
-        android:icon="@drawable/ic_setting_enable_statusbar"
-        android:key="pref_statusbar_switch"
-        android:summary="@string/pref_enable_actionbar_summary"
-        android:title="@string/pref_enable_statusbar_title" />
-    <SwitchPreferenceCompat
-        android:defaultValue="false"
-        android:icon="@drawable/ic_setting_keep_screen_on"
-        android:key="pref_wakelock_switch"
-        android:title="@string/pref_wakelock_title" />
+    <PreferenceCategory android:title="Giao diện &amp; Chủ đề (Novela Style)">
+        <ListPreference
+            android:defaultValue="system"
+            android:entries="@array/pref_theme_entries"
+            android:entryValues="@array/pref_theme_values"
+            android:icon="@drawable/ic_setting_theme"
+            android:key="pref_theme"
+            android:summary="%s"
+            android:title="@string/pref_theme_title" />
+        <ListPreference
+            android:defaultValue="#00C896"
+            android:entries="@array/pref_theme_accent_entries"
+            android:entryValues="@array/pref_theme_accent_values"
+            android:icon="@drawable/ic_setting_button_shape"
+            android:key="pref_theme_accent"
+            android:summary="%s"
+            android:title="Màu chủ đạo (Accent Color)" />
+        <Preference
+            android:icon="@drawable/ic_baseline_tune_24"
+            android:key="pref_custom_accent_color"
+            android:summary="Bảng màu chọn màu chủ đạo tùy ý"
+            android:title="Tùy chỉnh màu chủ đạo..." />
+        <Preference
+            android:icon="@drawable/ic_setting_black_background"
+            android:key="pref_custom_bg_color"
+            android:summary="Bảng màu chọn màu nền ứng dụng"
+            android:title="Tùy chỉnh màu nền..." />
+        <Preference
+            android:icon="@drawable/ic_setting_default"
+            android:key="pref_custom_text_color"
+            android:summary="Bảng màu chọn màu chữ chính"
+            android:title="Tùy chỉnh màu chữ..." />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Cài đặt hệ thống">
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:icon="@drawable/ic_setting_enable_action_bar"
+            android:key="pref_actionbar_switch"
+            android:summary="@string/pref_enable_actionbar_summary"
+            android:title="@string/pref_enable_actionbar_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:icon="@drawable/ic_setting_enable_statusbar"
+            android:key="pref_statusbar_switch"
+            android:summary="@string/pref_enable_actionbar_summary"
+            android:title="@string/pref_enable_statusbar_title" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:icon="@drawable/ic_setting_keep_screen_on"
+            android:key="pref_wakelock_switch"
+            android:title="@string/pref_wakelock_title" />
+    </PreferenceCategory>
     <ListPreference
         android:defaultValue="name"
         android:entries="@array/pref_app_sort_entries"

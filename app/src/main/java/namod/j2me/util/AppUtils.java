@@ -16,6 +16,13 @@
 
 package namod.j2me.util;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Build;
+
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.preference.PreferenceManager;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,6 +35,81 @@ import namod.j2me.appsdb.AppRepository;
 import namod.j2me.config.Config;
 
 public class AppUtils {
+
+	public static void initTheme(Context context) {
+		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+		applyTheme(sp);
+	}
+
+	public static void applyTheme(SharedPreferences sp) {
+		String theme = sp != null ? sp.getString("pref_theme", "system") : "system";
+		applyTheme(theme);
+	}
+
+	public static int dpToPx(int dp, Context context) {
+		if (context == null) return dp;
+		return (int) (dp * context.getResources().getDisplayMetrics().density + 0.5f);
+	}
+
+	public static int getAccentColor(Context context) {
+		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+		String hex = sp.getString("pref_theme_accent", "#00C896");
+		try {
+			return android.graphics.Color.parseColor(hex);
+		} catch (Exception e) {
+			return 0xFF00C896;
+		}
+	}
+
+	public static int getCustomBgColor(Context context, int fallback) {
+		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+		String hex = sp.getString("pref_custom_bg", null);
+		if (hex != null) {
+			try {
+				return android.graphics.Color.parseColor(hex);
+			} catch (Exception ignored) {}
+		}
+		return fallback;
+	}
+
+	public static int getCustomTextColor(Context context, int fallback) {
+		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+		String hex = sp.getString("pref_custom_text", null);
+		if (hex != null) {
+			try {
+				return android.graphics.Color.parseColor(hex);
+			} catch (Exception ignored) {}
+		}
+		return fallback;
+	}
+
+	public static void applyTheme(String theme) {
+		if (theme == null) theme = "system";
+		int mode;
+		switch (theme) {
+			case "light":
+				mode = AppCompatDelegate.MODE_NIGHT_NO;
+				break;
+			case "dark":
+				mode = AppCompatDelegate.MODE_NIGHT_YES;
+				break;
+			case "auto-time":
+				mode = AppCompatDelegate.MODE_NIGHT_AUTO_TIME;
+				break;
+			case "auto-battery":
+				mode = AppCompatDelegate.MODE_NIGHT_AUTO_BATTERY;
+				break;
+			case "system":
+			default:
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+					mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+				} else {
+					mode = AppCompatDelegate.MODE_NIGHT_AUTO_BATTERY;
+				}
+				break;
+		}
+		AppCompatDelegate.setDefaultNightMode(mode);
+	}
 
 	private static ArrayList<AppItem> getAppsList() {
 		ArrayList<AppItem> apps = new ArrayList<>();

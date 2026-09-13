@@ -264,10 +264,11 @@ public class MicroActivity extends AppCompatActivity {
 	}
 
 	private void setTheme(String theme) {
-		if (theme.equals("dark")) {
-			setTheme(R.style.AppTheme_NoActionBar);
-		} else {
+		namod.j2me.util.AppUtils.applyTheme(theme);
+		if ("light".equals(theme)) {
 			setTheme(R.style.AppTheme_Light_NoActionBar);
+		} else {
+			setTheme(R.style.AppTheme_NoActionBar);
 		}
 	}
 

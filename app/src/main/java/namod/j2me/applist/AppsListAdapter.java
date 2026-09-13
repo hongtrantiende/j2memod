@@ -18,8 +18,13 @@
 package namod.j2me.applist;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.os.Build;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,6 +33,8 @@ import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.ImageView;
 import android.widget.TextView;
+import androidx.core.content.ContextCompat;
+import namod.j2me.R;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -92,6 +99,7 @@ public class AppsListAdapter extends BaseAdapter implements Filterable {
 			holder.name = view.findViewById(R.id.list_title);
 			holder.author = view.findViewById(R.id.list_author);
 			holder.version = view.findViewById(R.id.list_version);
+			holder.more = view.findViewById(R.id.list_more);
 			view.setTag(holder);
 		} else {
 			holder = (ViewHolder) view.getTag();
@@ -107,10 +115,85 @@ public class AppsListAdapter extends BaseAdapter implements Filterable {
 		}
 		holder.name.setText(item.getTitle());
 		if (holder.author != null) {
-			holder.author.setText(item.getAuthorExt(context));
+			String author = item.getAuthor();
+			String title = item.getTitle();
+			if (author != null && !author.trim().isEmpty()) {
+				String cleanAuthor = author.trim();
+				if (title != null && cleanAuthor.equalsIgnoreCase(title.trim())) {
+					holder.author.setText("J2ME");
+				} else {
+					holder.author.setText(cleanAuthor);
+				}
+				holder.author.setVisibility(View.VISIBLE);
+			} else {
+				holder.author.setText("J2ME");
+				holder.author.setVisibility(View.VISIBLE);
+			}
+		}
+		int accent = namod.j2me.util.AppUtils.getAccentColor(context);
+		View cardContainer = view.findViewById(R.id.card_container);
+		if (cardContainer != null) {
+			GradientDrawable cardShape = new GradientDrawable();
+			cardShape.setCornerRadius(namod.j2me.util.AppUtils.dpToPx(14, context));
+			int cardBg = ContextCompat.getColor(context, R.color.card_bg);
+			int customBg = namod.j2me.util.AppUtils.getCustomBgColor(context, -1);
+			if (customBg != -1) {
+				cardShape.setColor(customBg);
+			} else {
+				cardShape.setColor(cardBg);
+			}
+			cardShape.setStroke(namod.j2me.util.AppUtils.dpToPx(1, context),
+					Color.argb(80, Color.red(accent), Color.green(accent), Color.blue(accent)));
+			if (Build.VERSION.SDK_INT >= 21) {
+				cardContainer.setBackground(new RippleDrawable(ColorStateList.valueOf(0x20FFFFFF), cardShape, null));
+			} else {
+				cardContainer.setBackground(cardShape);
+			}
+
+			double bgLuminance = (0.299 * Color.red(cardBg) + 0.587 * Color.green(cardBg) + 0.114 * Color.blue(cardBg)) / 255.0;
+			int defaultTextColor = ContextCompat.getColor(context, R.color.text_primary);
+			int customTextColor = namod.j2me.util.AppUtils.getCustomTextColor(context, -1);
+			if (customTextColor != -1) {
+				double textLuminance = (0.299 * Color.red(customTextColor) + 0.587 * Color.green(customTextColor) + 0.114 * Color.blue(customTextColor)) / 255.0;
+				if (Math.abs(textLuminance - bgLuminance) < 0.35) {
+					holder.name.setTextColor(bgLuminance > 0.5 ? 0xFF111827 : 0xFFFFFFFF);
+					if (holder.author != null) holder.author.setTextColor(bgLuminance > 0.5 ? 0xFF4B5563 : 0xFF9CA3AF);
+				} else {
+					holder.name.setTextColor(customTextColor);
+				}
+			} else {
+				holder.name.setTextColor(bgLuminance > 0.5 ? 0xFF111827 : defaultTextColor);
+				if (holder.author != null) holder.author.setTextColor(bgLuminance > 0.5 ? 0xFF4B5563 : ContextCompat.getColor(context, R.color.text_secondary));
+			}
 		}
 		if (holder.version != null) {
-			holder.version.setText(item.getVersionExt(context));
+			String ver = item.getVersion();
+			if (ver != null && !ver.trim().isEmpty()) {
+				String vText = ver.trim();
+				if (!vText.toLowerCase().startsWith("v")) {
+					vText = "v" + vText;
+				}
+				holder.version.setVisibility(View.VISIBLE);
+				holder.version.setText(vText);
+				holder.version.setTextColor(accent);
+				GradientDrawable pill = new GradientDrawable();
+				pill.setCornerRadius(namod.j2me.util.AppUtils.dpToPx(8, context));
+				pill.setColor(Color.argb(35, Color.red(accent), Color.green(accent), Color.blue(accent)));
+				pill.setStroke(namod.j2me.util.AppUtils.dpToPx(1, context),
+						Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent)));
+				holder.version.setBackground(pill);
+			} else {
+				holder.version.setVisibility(View.GONE);
+			}
+		}
+
+		if (holder.more != null) {
+			final View finalItemView = view;
+			holder.more.setOnClickListener(v -> {
+				if (context instanceof android.app.Activity) {
+					((android.app.Activity) context).openContextMenu(finalItemView);
+				}
+			});
 		}
 
 		return view;
@@ -127,6 +210,7 @@ public class AppsListAdapter extends BaseAdapter implements Filterable {
 		TextView name;
 		TextView author;
 		TextView version;
+		View more;
 	}
 
 	@Override

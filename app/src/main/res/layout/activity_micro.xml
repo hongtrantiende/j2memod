@@ -4,7 +4,7 @@
     android:id="@+id/midletFrame"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="?android:colorBackground">
 
     <LinearLayout
         android:id="@+id/virtual_display"
@@ -19,14 +19,14 @@
             android:background="?attr/colorPrimary"
             android:descendantFocusability="blocksDescendants"
             android:elevation="4dp"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
             app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
 
         <FrameLayout
             android:id="@+id/displayable_container"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1"
+            android:background="?android:colorBackground" />
     </LinearLayout>
 
     <javax.microedition.lcdui.overlay.OverlayView

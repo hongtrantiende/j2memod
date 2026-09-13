@@ -22,8 +22,10 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -142,6 +144,7 @@ public class AppsListFragment extends Fragment {
 
 		FloatingActionButton fab = view.findViewById(R.id.fab);
 		if (fab != null) {
+			applyFabColor(view);
 			fab.setOnClickListener(v -> {
 				Intent i = new Intent(getActivity(), FilteredFilePickerActivity.class);
 				i.putExtra(FilePickerActivity.EXTRA_ALLOW_MULTIPLE, false);
@@ -151,6 +154,18 @@ public class AppsListFragment extends Fragment {
 				i.putExtra(FilePickerActivity.EXTRA_START_PATH, FilteredFilePickerFragment.getLastPath());
 				startActivityForResult(i, FILE_CODE);
 			});
+		}
+	}
+
+	private void applyFabColor(View root) {
+		if (root == null && getView() != null) root = getView();
+		if (root == null || getContext() == null) return;
+		FloatingActionButton fab = root.findViewById(R.id.fab);
+		if (fab != null) {
+			int accentColor = namod.j2me.util.AppUtils.getAccentColor(getContext());
+			fab.setBackgroundTintList(ColorStateList.valueOf(accentColor));
+			double luminance = (0.299 * Color.red(accentColor) + 0.587 * Color.green(accentColor) + 0.114 * Color.blue(accentColor)) / 255.0;
+			fab.setImageTintList(ColorStateList.valueOf(luminance > 0.65 ? Color.BLACK : Color.WHITE));
 		}
 	}
 
@@ -171,6 +186,10 @@ public class AppsListFragment extends Fragment {
 	@Override
 	public void onResume() {
 		super.onResume();
+		applyFabColor(getView());
+		if (adapter != null) {
+			adapter.notifyDataSetChanged();
+		}
 		if (appPath != null) {
 			showDexOptionsDialog(appPath);
 			appPath = null;

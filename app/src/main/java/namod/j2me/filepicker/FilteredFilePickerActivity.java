@@ -43,11 +43,12 @@ public class FilteredFilePickerActivity extends AbstractFilePickerActivity<File>
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-		String theme = preferences.getString("pref_theme", "light");
-		if ("dark".equals(theme)) {
-			setTheme(R.style.FilePickerTheme);
-		} else {
+		String theme = preferences.getString("pref_theme", "system");
+		namod.j2me.util.AppUtils.applyTheme(theme);
+		if ("light".equals(theme)) {
 			setTheme(R.style.FilePickerTheme_Light);
+		} else {
+			setTheme(R.style.FilePickerTheme);
 		}
 		super.onCreate(savedInstanceState);
 	}

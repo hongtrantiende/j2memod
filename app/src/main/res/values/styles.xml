@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <style name="AppTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_dark</item>
         <item name="colorAccent">@color/accent</item>
@@ -12,6 +12,7 @@
         <item name="bg_config_card">@drawable/bg_config_card</item>
         <item name="textColorPrimary">@color/text_primary</item>
         <item name="textColorSecondary">@color/text_secondary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
@@ -24,9 +25,36 @@
         <item name="textAppearanceLargePopupMenu">@style/PopupMenuTextAppearanceLarge</item>
     </style>
 
-    <style name="AppTheme.Light" parent="AppTheme" />
+    <style name="AppTheme.Light" parent="Theme.AppCompat.Light">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="buttonStyle">@style/ButtonStyle</item>
+        <item name="bg_config_card">@drawable/bg_config_card</item>
+        <item name="textColorPrimary">@color/text_primary</item>
+        <item name="textColorSecondary">@color/text_secondary</item>
+        <item name="actionMenuTextColor">@color/text_primary</item>
+        <item name="android:actionMenuTextColor">@color/text_primary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+    </style>
 
-    <style name="AppTheme.Light.NoActionBar" parent="AppTheme.NoActionBar" />
+    <style name="AppTheme.Light.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="actionOverflowMenuStyle">@style/Widget.AppTheme.OverflowMenu</item>
+        <item name="textColorPrimary">@color/text_primary</item>
+        <item name="textColorSecondary">@color/text_secondary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+    </style>
 
     <style name="Widget.AppTheme.OverflowMenu" parent="Widget.AppCompat.Light.PopupMenu.Overflow">
         <item name="android:popupBackground">@color/background</item>

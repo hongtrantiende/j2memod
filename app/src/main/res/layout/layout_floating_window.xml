@@ -28,11 +28,13 @@
             android:paddingRight="10dp">
 
             <ImageView
+                android:id="@+id/img_tab_icon"
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:src="@drawable/ic_tab_menu" />
 
             <TextView
+                android:id="@+id/tv_tab_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="4dp"
@@ -59,11 +61,12 @@
                 android:src="@drawable/ic_drag_handle" />
 
             <TextView
+                android:id="@+id/window_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="4dp"
                 android:text="J2ME Namod"
-                android:textColor="#A0B2C6"
+                android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -77,6 +80,7 @@
             android:background="@drawable/bg_floating_icon_btn"
             android:padding="6dp"
             android:src="@drawable/ic_keyboard_hide"
+            android:tint="@color/text_secondary"
             android:contentDescription="Ẩn bàn phím" />
 
         <!-- Maximize button (Full screen) -->
@@ -87,7 +91,8 @@
             android:layout_marginRight="2dp"
             android:background="@drawable/bg_floating_icon_btn"
             android:padding="6dp"
-            android:src="@android:drawable/ic_menu_zoom" />
+            android:src="@android:drawable/ic_menu_zoom"
+            android:tint="@color/text_secondary" />
 
         <!-- Minimize button (back to floating bubble) -->
         <ImageView
@@ -96,7 +101,8 @@
             android:layout_height="32dp"
             android:background="@drawable/bg_floating_icon_btn"
             android:padding="6dp"
-            android:src="@drawable/ic_minimize" />
+            android:src="@drawable/ic_minimize"
+            android:tint="@color/text_secondary" />
     </LinearLayout>
 
     <!-- Game Screen & Overlay Container -->
@@ -104,13 +110,13 @@
         android:layout_width="fill_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="#ff000000">
+        android:background="@color/background">
 
         <FrameLayout
             android:id="@+id/game_container"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
-            android:background="#ff000000" />
+            android:background="@color/background" />
 
         <javax.microedition.lcdui.overlay.OverlayView
             android:id="@+id/vOverlay"
@@ -123,9 +129,10 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_gravity="bottom|end"
-            android:background="?android:selectableItemBackground"
+            android:background="@drawable/bg_floating_icon_btn"
             android:padding="4dp"
-            android:src="@drawable/ic_resize_corner" />
+            android:src="@drawable/ic_resize_corner"
+            android:tint="@color/text_secondary" />
     </FrameLayout>
 
     <!-- Bottom Command Bar for Non-Canvas Screens (TextBox, Form, List commands) -->
@@ -133,7 +140,7 @@
         android:id="@+id/floating_command_bar"
         android:layout_width="fill_parent"
         android:layout_height="46dp"
-        android:background="#212830"
+        android:background="@color/background"
         android:gravity="center_vertical|end"
         android:orientation="horizontal"
         android:paddingLeft="8dp"

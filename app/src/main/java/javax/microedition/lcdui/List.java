@@ -380,6 +380,8 @@ public class List extends Screen implements Choice, ItemSelector, View.OnCreateC
 		list = new ListView(context);
 		list.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
 				android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+		list.setDivider(new android.graphics.drawable.ColorDrawable(0x18808080));
+		list.setDividerHeight(1);
 		list.setAdapter(adapter);
 
 		int size = selected.size();

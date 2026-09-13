@@ -31,15 +31,16 @@ public class BaseActivity extends AppCompatActivity {
 	@Override
 	protected void onCreate(@Nullable Bundle savedInstanceState) {
 		SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-		String theme = preferences.getString("pref_theme", "light");
-		if (theme.equals("dark")) {
-			setTheme(R.style.AppTheme);
-		} else {
+		String theme = preferences.getString("pref_theme", "system");
+		namod.j2me.util.AppUtils.applyTheme(theme);
+		if ("light".equals(theme)) {
 			setTheme(R.style.AppTheme_Light);
+		} else {
+			setTheme(R.style.AppTheme);
 		}
+		super.onCreate(savedInstanceState);
 		if (getSupportActionBar() != null) {
 			getSupportActionBar().setElevation(getResources().getDisplayMetrics().density * 2);
 		}
-		super.onCreate(savedInstanceState);
 	}
 }

@@ -4,10 +4,9 @@
     android:layout_height="wrap_content">
     <ImageView
         android:id="@+id/bubble_icon"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:background="@drawable/bubble_background"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
         android:src="@mipmap/ic_launcher"
         android:scaleType="fitCenter"
-        android:elevation="6dp" />
+        android:elevation="8dp" />
 </FrameLayout>

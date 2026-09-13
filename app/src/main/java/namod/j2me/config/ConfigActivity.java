@@ -20,10 +20,16 @@ package namod.j2me.config;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.widget.Button;
+import androidx.core.content.ContextCompat;
+import com.google.android.material.switchmaterial.SwitchMaterial;
+import namod.j2me.util.AppUtils;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.Spanned;
@@ -357,6 +363,89 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 		tfVKSelFore.addTextChangedListener(new ColorTextWatcher(tfVKSelFore));
 		tfVKSelBack.addTextChangedListener(new ColorTextWatcher(tfVKSelBack));
 		tfVKOutline.addTextChangedListener(new ColorTextWatcher(tfVKOutline));
+		applyAccentTheme();
+	}
+
+	private void applyAccentTheme() {
+		int accentColor = AppUtils.getAccentColor(this);
+		int cardBg = ContextCompat.getColor(this, R.color.config_card);
+		int strokeWidth = AppUtils.dpToPx(1, this);
+		int cornerRadius = AppUtils.dpToPx(6, this);
+
+		int[] cardIds = {
+				R.id.rootConfigNetwork,
+				R.id.rootConfigScreen,
+				R.id.rootConfigFont,
+				R.id.rootInputConfig,
+				R.id.linearLayout
+		};
+		for (int id : cardIds) {
+			View card = findViewById(id);
+			if (card != null) {
+				GradientDrawable gd = new GradientDrawable();
+				gd.setColor(cardBg);
+				gd.setCornerRadius(cornerRadius);
+				gd.setStroke(strokeWidth, accentColor);
+				card.setBackground(gd);
+			}
+		}
+
+		int[] btnIds = {
+				R.id.cmdScreenBack,
+				R.id.cmdFontSizePresets,
+				R.id.cmdKeyMappings
+		};
+		for (int id : btnIds) {
+			View btn = findViewById(id);
+			if (btn instanceof Button) {
+				((Button) btn).setBackgroundTintList(ColorStateList.valueOf(accentColor));
+			}
+		}
+
+		if (sbScaleRatio != null) {
+			sbScaleRatio.setProgressTintList(ColorStateList.valueOf(accentColor));
+			sbScaleRatio.setThumbTintList(ColorStateList.valueOf(accentColor));
+		}
+		if (sbVKAlpha != null) {
+			sbVKAlpha.setProgressTintList(ColorStateList.valueOf(accentColor));
+			sbVKAlpha.setThumbTintList(ColorStateList.valueOf(accentColor));
+		}
+
+		ColorStateList thumbStates = new ColorStateList(
+				new int[][]{
+						new int[]{android.R.attr.state_checked},
+						new int[]{}
+				},
+				new int[]{
+						accentColor,
+						0xFFB0B0B0
+				}
+		);
+		ColorStateList trackStates = new ColorStateList(
+				new int[][]{
+						new int[]{android.R.attr.state_checked},
+						new int[]{}
+				},
+				new int[]{
+						Color.argb(128, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor)),
+						0x33B0B0B0
+				}
+		);
+
+		Object[] switches = {
+				cxScaleToFit, cxKeepAspectRatio, cxFilter, cxImmediate, cxParallel,
+				cxForceFullscreen, cxShowFps, cxFontSizeInSP, cxTouchInput, cxShowKeyboard,
+				cxVKFeedback, cxVKForceOpacity, cxGrayscale, cxSleepTab, cxAutoSleep, cxReduceGraphics
+		};
+		for (Object sw : switches) {
+			if (sw instanceof SwitchMaterial) {
+				((SwitchMaterial) sw).setThumbTintList(thumbStates);
+				((SwitchMaterial) sw).setTrackTintList(trackStates);
+			} else if (sw instanceof androidx.appcompat.widget.SwitchCompat) {
+				((androidx.appcompat.widget.SwitchCompat) sw).setThumbTintList(thumbStates);
+				((androidx.appcompat.widget.SwitchCompat) sw).setTrackTintList(trackStates);
+			}
+		}
 	}
 
 	void loadConfig() {
