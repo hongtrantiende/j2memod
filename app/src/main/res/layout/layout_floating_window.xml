@@ -9,27 +9,27 @@
     <!-- Header bar -->
     <LinearLayout
         android:layout_width="fill_parent"
-        android:layout_height="36dp"
+        android:layout_height="38dp"
         android:background="@drawable/bg_floating_header"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingLeft="4dp"
-        android:paddingRight="4dp">
+        android:paddingLeft="6dp"
+        android:paddingRight="6dp">
 
-        <!-- Tab Menu button (triggers long-press * to show tab menu) -->
+        <!-- Tab Menu button (pill shape, triggers long-press * to show tab menu) -->
         <LinearLayout
             android:id="@+id/btn_tab_menu"
             android:layout_width="wrap_content"
-            android:layout_height="28dp"
-            android:background="?android:selectableItemBackground"
+            android:layout_height="26dp"
+            android:background="@drawable/bg_tab_pill"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingLeft="6dp"
-            android:paddingRight="8dp">
+            android:paddingLeft="8dp"
+            android:paddingRight="10dp">
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:src="@drawable/ic_tab_menu" />
 
             <TextView
@@ -37,35 +37,44 @@
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="4dp"
                 android:text="TAB"
-                android:textColor="#4CAF50"
+                android:textColor="#FFFFFF"
                 android:textSize="12sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
         <!-- Move handle area (drag to move window) -->
-        <FrameLayout
+        <LinearLayout
             android:id="@+id/move_handle"
             android:layout_width="0dp"
             android:layout_height="fill_parent"
             android:layout_weight="1"
             android:focusable="true"
-            android:focusableInTouchMode="true">
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_drag_handle" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="J2ME • Kéo di chuyển"
-                android:textColor="#78909C"
-                android:textSize="11sp" />
-        </FrameLayout>
+                android:layout_marginLeft="4dp"
+                android:text="J2ME Namod"
+                android:textColor="#A0B2C6"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <!-- Hide Keyboard button -->
         <ImageView
             android:id="@+id/btn_hide_keyboard"
-            android:layout_width="34dp"
-            android:layout_height="fill_parent"
-            android:background="?android:selectableItemBackground"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginRight="2dp"
+            android:background="@drawable/bg_floating_icon_btn"
             android:padding="6dp"
             android:src="@drawable/ic_keyboard_hide"
             android:contentDescription="Ẩn bàn phím" />
@@ -73,19 +82,20 @@
         <!-- Maximize button (Full screen) -->
         <ImageView
             android:id="@+id/maximize_window"
-            android:layout_width="34dp"
-            android:layout_height="fill_parent"
-            android:background="?android:selectableItemBackground"
-            android:padding="7dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginRight="2dp"
+            android:background="@drawable/bg_floating_icon_btn"
+            android:padding="6dp"
             android:src="@android:drawable/ic_menu_zoom" />
 
         <!-- Minimize button (back to floating bubble) -->
         <ImageView
             android:id="@+id/close_window"
-            android:layout_width="34dp"
-            android:layout_height="fill_parent"
-            android:background="?android:selectableItemBackground"
-            android:padding="7dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_floating_icon_btn"
+            android:padding="6dp"
             android:src="@drawable/ic_minimize" />
     </LinearLayout>
 

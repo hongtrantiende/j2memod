@@ -1,8 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="fill_parent"
-  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:fab="http://schemas.android.com/apk/res-auto">
-    <ListView android:id="@android:id/list" android:layout_width="fill_parent" android:layout_height="fill_parent" />
-    <GridView android:gravity="center" android:id="@id/grid" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="fill_parent" android:stretchMode="columnWidth" android:columnWidth="90.0dip" android:numColumns="auto_fit" />
-    <TextView android:textSize="18.0sp" android:layout_gravity="center_horizontal" android:id="@android:id/empty" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/no_data_for_display" />
-    <com.google.android.material.floatingactionbutton.FloatingActionButton android:layout_gravity="end|bottom|center" android:id="@id/fab" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_margin="16.0dip" android:src="@drawable/ic_add_white" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ListView
+        android:id="@android:id/list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:divider="@null"
+        android:dividerHeight="0dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="88dp"
+        android:scrollbarStyle="outsideOverlay" />
+
+    <GridView
+        android:id="@+id/grid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:columnWidth="110dp"
+        android:gravity="center"
+        android:numColumns="auto_fit"
+        android:padding="8dp"
+        android:paddingBottom="88dp"
+        android:scrollbarStyle="outsideOverlay"
+        android:stretchMode="columnWidth"
+        android:visibility="gone" />
+
+    <!-- Modern Empty View -->
+    <LinearLayout
+        android:id="@android:id/empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:alpha="0.4"
+            android:src="@drawable/ic_list"
+            app:tint="?attr/textColorPrimary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/no_data_for_display"
+            android:textColor="?attr/textColorPrimary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:alpha="0.7"
+            android:gravity="center"
+            android:text="Nhấn nút (+) để cài đặt game JAR/JAD"
+            android:textColor="?attr/textColorSecondary"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:layout_margin="20dp"
+        android:src="@drawable/ic_add_white"
+        app:elevation="6dp"
+        app:fabSize="normal"
+        app:pressedTranslationZ="12dp" />
+
 </FrameLayout>

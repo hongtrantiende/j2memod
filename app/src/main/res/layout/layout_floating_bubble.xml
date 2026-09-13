@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-  xmlns:android="http://schemas.android.com/apk/res/android">
-    <ImageView android:id="@id/bubble_icon" android:layout_width="60.0dip" android:layout_height="60.0dip" android:src="@mipmap/ic_launcher" android:scaleType="fitCenter" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <ImageView
+        android:id="@+id/bubble_icon"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:background="@drawable/bubble_background"
+        android:src="@mipmap/ic_launcher"
+        android:scaleType="fitCenter"
+        android:elevation="6dp" />
 </FrameLayout>
