@@ -25,6 +25,12 @@
 
 package javax.microedition.io;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.util.Log;
+
+import androidx.preference.PreferenceManager;
+
 import org.microemu.microedition.ImplFactory;
 
 import java.io.DataInputStream;
@@ -33,7 +39,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import javax.microedition.util.ContextHolder;
+
 public class Connector {
+
+	private static final String TAG = "Connector";
 
 	public static final int READ = 1;
 
@@ -45,32 +55,105 @@ public class Connector {
 
 	}
 
+	public static String redirectUrl(String str) {
+		if (str == null) {
+			return null;
+		}
+		int protoIdx = str.indexOf("://");
+		if (protoIdx == -1) {
+			return str;
+		}
+		String proto = str.substring(0, protoIdx);
+		if (!proto.equalsIgnoreCase("socket") && !proto.equalsIgnoreCase("ssl")) {
+			return str;
+		}
+
+		String redirectAddr = System.getProperty("pref_ip_redirect_addr");
+		String redirectPort = System.getProperty("pref_ip_redirect_port");
+
+		if ((redirectAddr == null || redirectAddr.trim().isEmpty()) && (redirectPort == null || redirectPort.trim().isEmpty())) {
+			try {
+				Context ctx = ContextHolder.getAppContext();
+				if (ctx != null) {
+					SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(ctx);
+					redirectAddr = sp.getString("pref_ip_redirect_addr", "");
+					redirectPort = sp.getString("pref_ip_redirect_port", "");
+				}
+			} catch (Throwable ignored) {}
+		}
+
+		if ((redirectAddr == null || redirectAddr.trim().isEmpty()) && (redirectPort == null || redirectPort.trim().isEmpty())) {
+			return str;
+		}
+
+		redirectAddr = redirectAddr != null ? redirectAddr.trim() : "";
+		redirectPort = redirectPort != null ? redirectPort.trim() : "";
+
+		String rest = str.substring(protoIdx + 3);
+		int endIdx = rest.indexOf('/');
+		if (endIdx == -1) {
+			endIdx = rest.indexOf(';');
+		}
+		if (endIdx == -1) {
+			endIdx = rest.length();
+		}
+		String hostPort = rest.substring(0, endIdx);
+		String suffix = rest.substring(endIdx);
+
+		String origHost = hostPort;
+		String origPort = "";
+		int colonIdx = hostPort.lastIndexOf(':');
+		if (colonIdx != -1) {
+			origHost = hostPort.substring(0, colonIdx);
+			origPort = hostPort.substring(colonIdx + 1);
+		}
+
+		String targetHost = !redirectAddr.isEmpty() ? redirectAddr : origHost;
+		String targetPort = !redirectPort.isEmpty() ? redirectPort : origPort;
+
+		StringBuilder sb = new StringBuilder(proto).append("://").append(targetHost);
+		if (!targetPort.isEmpty()) {
+			sb.append(':').append(targetPort);
+		}
+		sb.append(suffix);
+		String redirected = sb.toString();
+		Log.i(TAG, "Chuyển hướng IP: " + str + " -> " + redirected);
+		return redirected;
+	}
+
 	public static Connection open(String name) throws IOException {
-		return ImplFactory.getCGFImplementation(name).open(name);
+		String redirected = redirectUrl(name);
+		return ImplFactory.getCGFImplementation(redirected).open(redirected);
 	}
 
 	public static Connection open(String name, int mode) throws IOException {
-		return ImplFactory.getCGFImplementation(name).open(name, mode);
+		String redirected = redirectUrl(name);
+		return ImplFactory.getCGFImplementation(redirected).open(redirected, mode);
 	}
 
 	public static Connection open(String name, int mode, boolean timeouts) throws IOException {
-		return ImplFactory.getCGFImplementation(name).open(name, mode, timeouts);
+		String redirected = redirectUrl(name);
+		return ImplFactory.getCGFImplementation(redirected).open(redirected, mode, timeouts);
 	}
 
 	public static DataInputStream openDataInputStream(String name) throws IOException {
-		return ImplFactory.getCGFImplementation(name).openDataInputStream(name);
+		String redirected = redirectUrl(name);
+		return ImplFactory.getCGFImplementation(redirected).openDataInputStream(redirected);
 	}
 
 	public static DataOutputStream openDataOutputStream(String name) throws IOException {
-		return ImplFactory.getCGFImplementation(name).openDataOutputStream(name);
+		String redirected = redirectUrl(name);
+		return ImplFactory.getCGFImplementation(redirected).openDataOutputStream(redirected);
 	}
 
 	public static InputStream openInputStream(String name) throws IOException {
-		return ImplFactory.getCGFImplementation(name).openInputStream(name);
+		String redirected = redirectUrl(name);
+		return ImplFactory.getCGFImplementation(redirected).openInputStream(redirected);
 	}
 
 	public static OutputStream openOutputStream(String name) throws IOException {
-		return ImplFactory.getCGFImplementation(name).openOutputStream(name);
+		String redirected = redirectUrl(name);
+		return ImplFactory.getCGFImplementation(redirected).openOutputStream(redirected);
 	}
 
 }

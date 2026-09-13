@@ -45,7 +45,7 @@ public class ConnectorImpl extends ConnectorAdapter {
 
 	@Override
 	public Connection open(final String name, final int mode, final boolean timeouts) throws IOException {
-		return openSecure(name, mode, timeouts);
+		return openSecure(javax.microedition.io.Connector.redirectUrl(name), mode, timeouts);
 	}
 
 	private Connection openSecure(String name, int mode, boolean timeouts) throws IOException {

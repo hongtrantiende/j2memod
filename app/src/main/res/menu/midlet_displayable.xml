@@ -8,7 +8,6 @@
                 <item android:id="@id/action_save_log" android:title="@string/save_log" />
                 <item android:id="@id/action_log_console" android:title="@string/log_console" />
                 <item android:id="@id/action_chat_bubble" android:title="@string/chat_bubble" />
-                <item android:id="@id/action_afk_mode" android:title="@string/action_afk_mode" />
             </group>
         </menu>
     </item>

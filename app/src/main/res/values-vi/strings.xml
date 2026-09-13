@@ -199,11 +199,6 @@ Tôi vô cùng cảm kích!"</string>
     <string name="v7_preference_off">TẮT</string>
     <string name="v7_preference_on">BẬT</string>
     <string name="version">Phiên bản:</string>
-    <string name="action_afk_mode">Chế độ Treo máy (Tiết kiệm Pin/CPU)</string>
-    <string name="afk_mode_running">🌙 CHẾ ĐỘ TREO MÁY</string>
-    <string name="afk_mode_time">Thời gian treo: %s</string>
-    <string name="afk_mode_stats">RAM: %1$d MB  |  CPU: %2$.1f%%</string>
-    <string name="afk_mode_tip">Chạm màn hình hoặc ấn phím để quay lại game</string>
     <string name="pref_background_run_title">Chạy ngầm khi ẩn / tắt màn hình</string>
     <string name="pref_background_run_summary">Giữ kết nối mạng và game chạy liên tục không bị dừng khi tắt màn hình hoặc chuyển ứng dụng khác</string>
 </resources>

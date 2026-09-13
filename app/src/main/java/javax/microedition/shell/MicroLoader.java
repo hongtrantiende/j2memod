@@ -244,6 +244,16 @@ public class MicroLoader {
 			Canvas.setAutoSleep(params.autoSleep);
 			Canvas.setReduceGraphics(params.reduceGraphics);
 			Canvas.updateInteraction();
+			if (params.proxyAddr != null && !params.proxyAddr.trim().isEmpty()) {
+				System.setProperty("pref_ip_redirect_addr", params.proxyAddr.trim());
+			} else {
+				System.clearProperty("pref_ip_redirect_addr");
+			}
+			if (params.proxyPort != null && !params.proxyPort.trim().isEmpty()) {
+				System.setProperty("pref_ip_redirect_port", params.proxyPort.trim());
+			} else {
+				System.clearProperty("pref_ip_redirect_port");
+			}
 			ShaderInfo shader = params.shader;
 			if (shader == null) shader = new ShaderInfo();
 			Canvas.setShaderFilter(shader);

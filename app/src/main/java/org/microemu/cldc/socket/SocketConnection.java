@@ -39,8 +39,32 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 	}
 
 	public SocketConnection(String host, int port) throws IOException {
-		this.socket = new Socket(host, port);
-		namod.j2me.network.NetworkTracker.registerSocket(this, this.socket, host, port);
+		String targetHost = host;
+		int targetPort = port;
+
+		String redirectAddr = System.getProperty("pref_ip_redirect_addr");
+		String redirectPort = System.getProperty("pref_ip_redirect_port");
+		if ((redirectAddr == null || redirectAddr.trim().isEmpty()) && (redirectPort == null || redirectPort.trim().isEmpty())) {
+			try {
+				android.content.Context ctx = javax.microedition.util.ContextHolder.getAppContext();
+				if (ctx != null) {
+					android.content.SharedPreferences sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx);
+					redirectAddr = sp.getString("pref_ip_redirect_addr", "");
+					redirectPort = sp.getString("pref_ip_redirect_port", "");
+				}
+			} catch (Throwable ignored) {}
+		}
+		if (redirectAddr != null && !redirectAddr.trim().isEmpty()) {
+			targetHost = redirectAddr.trim();
+		}
+		if (redirectPort != null && !redirectPort.trim().isEmpty()) {
+			try {
+				targetPort = Integer.parseInt(redirectPort.trim());
+			} catch (NumberFormatException ignored) {}
+		}
+
+		this.socket = new Socket(targetHost, targetPort);
+		namod.j2me.network.NetworkTracker.registerSocket(this, this.socket, targetHost, targetPort);
 	}
 
 	public SocketConnection(Socket socket) {

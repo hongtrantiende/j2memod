@@ -156,20 +156,6 @@ public abstract class Canvas extends Displayable {
 	private static boolean sleepTab;
 	private static boolean autoSleep;
 	private static boolean wasAutoSleeping;
-	private static boolean afkMode;
-	private static long afkStartTime;
-	private static final Runnable afkTickRunnable = new Runnable() {
-		@Override
-		public void run() {
-			if (afkMode) {
-				Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
-				if (currentDisplayable instanceof Canvas) {
-					((Canvas) currentDisplayable).repaint();
-				}
-				sleepHandler.postDelayed(this, 1000L);
-			}
-		}
-	};
 	private static long lastInteractionTime = System.currentTimeMillis();
 	private static final Handler sleepHandler = new Handler(Looper.getMainLooper());
 	private static final Runnable sleepRunnable = () -> {
@@ -395,32 +381,6 @@ public abstract class Canvas extends Displayable {
 		autoSleep = z;
 	}
 
-	public static boolean isAfkMode() {
-		return afkMode;
-	}
-
-	public static void resetAfkMode() {
-		afkMode = false;
-		sleepHandler.removeCallbacks(afkTickRunnable);
-	}
-
-	public static void toggleAfkMode() {
-		afkMode = !afkMode;
-		sleepHandler.removeCallbacks(afkTickRunnable);
-		if (afkMode) {
-			afkStartTime = System.currentTimeMillis();
-			sleepHandler.postDelayed(afkTickRunnable, 1000L);
-			Image.clearCache();
-			Font.clearCache();
-			System.gc();
-		}
-		updateInteraction();
-		Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
-		if (currentDisplayable instanceof Canvas) {
-			((Canvas) currentDisplayable).repaint();
-		}
-	}
-
 	public static void updateInteraction() {
 		lastInteractionTime = System.currentTimeMillis();
 		sleepHandler.removeCallbacks(sleepRunnable);
@@ -483,29 +443,6 @@ public abstract class Canvas extends Displayable {
 		hideNotify();
 	}
 
-	public void drawAfkOverlay(CanvasWrapper g) {
-		g.clear(-16777216);
-		float cx = displayWidth / 2.0f;
-		float cy = displayHeight / 2.0f;
-		long elapsed = (System.currentTimeMillis() - afkStartTime) / 1000;
-		long hours = elapsed / 3600;
-		long mins = (elapsed % 3600) / 60;
-		long secs = elapsed % 60;
-		String timeStr = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, mins, secs);
-
-		g.setTextColor(0xFF00E5FF);
-		g.drawString(ContextHolder.getAppContext().getString(R.string.afk_mode_running), cx, cy - 70);
-
-		g.setTextColor(0xFFFFFFFF);
-		g.drawString(String.format(ContextHolder.getAppContext().getString(R.string.afk_mode_time), timeStr), cx, cy - 20);
-
-		g.setTextColor(0xFFFFD54F);
-		g.drawString(String.format(Locale.getDefault(), ContextHolder.getAppContext().getString(R.string.afk_mode_stats), ForegroundService.lastAppRamMB, ForegroundService.lastCpuPercent), cx, cy + 30);
-
-		g.setTextColor(0xFFAAAAAA);
-		g.drawString(ContextHolder.getAppContext().getString(R.string.afk_mode_tip), cx, cy + 80);
-	}
-
 	public void onDraw(android.graphics.Canvas canvas) {
 		if (graphicsMode != 2) return; // Fix for Android Pie
 		CanvasWrapper g = canvasWrapper;
@@ -515,8 +452,6 @@ public abstract class Canvas extends Displayable {
 			g.setTextColor(-1);
 			g.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
 					displayWidth / 2.0f, displayHeight / 2.0f);
-		} else if (afkMode) {
-			drawAfkOverlay(g);
 		} else {
 			g.clear(backgroundColor);
 			offscreenCopy.getBitmap().prepareToDraw();
@@ -802,7 +737,7 @@ public abstract class Canvas extends Displayable {
 	// GameCanvas
 	public void flushBuffer(Image image, int x, int y, int width, int height) {
 		limitFps();
-		if (!isShown() || afkMode) {
+		if (!isShown()) {
 			return;
 		}
 		synchronized (paintSync) {
@@ -829,7 +764,7 @@ public abstract class Canvas extends Displayable {
 	// ExtendedImage
 	public void flushBuffer(Image image, int x, int y) {
 		limitFps();
-		if (!isShown() || afkMode) {
+		if (!isShown()) {
 			return;
 		}
 		synchronized (paintSync) {
@@ -856,9 +791,7 @@ public abstract class Canvas extends Displayable {
 	private void limitFps() {
 		int currentLimit = fpsLimit;
 		boolean autoSleeping = isAutoSleeping();
-		if (afkMode) {
-			currentLimit = 1;
-		} else if (sleepTab && !isShown()) {
+		if (sleepTab && !isShown()) {
 			currentLimit = 5;
 		} else if (autoSleep && autoSleeping) {
 			if (!wasAutoSleeping) {
@@ -904,8 +837,6 @@ public abstract class Canvas extends Displayable {
 				g.setTextColor(-1);
 				g.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
 						displayWidth / 2.0f, displayHeight / 2.0f);
-			} else if (afkMode) {
-				drawAfkOverlay(g);
 			} else {
 				int bg = Displayable.isFloatingMode ? -16777216 : backgroundColor;
 				g.clear(bg);
@@ -1050,7 +981,7 @@ public abstract class Canvas extends Displayable {
 
 		@Override
 		public void onDrawFrame(GL10 gl) {
-			if (isAutoSleeping() || afkMode) {
+			if (isAutoSleeping()) {
 				glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 				if (overlayView != null) {
@@ -1122,22 +1053,6 @@ public abstract class Canvas extends Displayable {
 		public void process() {
 			synchronized (paintSync) {
 				if (surface == null || !surface.isValid() || !isShown()) {
-					return;
-				}
-				if (afkMode) {
-					if (graphicsMode == 1) {
-						if (innerView != null) {
-							renderer.requestRender();
-						}
-					} else if (graphicsMode == 2) {
-						if (innerView != null) {
-							innerView.postInvalidate();
-						}
-					} else if (!parallelRedraw) {
-						repaintScreen();
-					} else if (!uiHandler.hasMessages(0)) {
-						uiHandler.sendEmptyMessage(0);
-					}
 					return;
 				}
 				Graphics g = offscreen.getSingleGraphics();
@@ -1223,10 +1138,6 @@ public abstract class Canvas extends Displayable {
 		}
 
 		public boolean onKeyDown(int keyCode, KeyEvent event) {
-			if (afkMode) {
-				toggleAfkMode();
-				return true;
-			}
 			updateInteraction();
 			if (isAutoSleeping()) {
 				repaint();
@@ -1261,12 +1172,6 @@ public abstract class Canvas extends Displayable {
 		@Override
 		@SuppressLint("ClickableViewAccessibility")
 		public boolean onTouch(View v, MotionEvent event) {
-			if (afkMode) {
-				if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-					toggleAfkMode();
-				}
-				return true;
-			}
 			if (Canvas.this.isAutoSleeping()) {
 				updateInteraction();
 				repaint();
@@ -1379,8 +1284,6 @@ public abstract class Canvas extends Displayable {
 						canvasWrapper.setTextColor(-1);
 						canvasWrapper.drawString(ContextHolder.getAppContext().getString(R.string.auto_sleep_return),
 								displayWidth / 2.0f, displayHeight / 2.0f);
-					} else if (Canvas.afkMode) {
-						Canvas.this.drawAfkOverlay(canvasWrapper);
 					}
 				});
 				overlayView.setVisibility(true);

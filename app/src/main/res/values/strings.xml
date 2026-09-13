@@ -426,11 +426,6 @@ I really appreciate this!"</string>
     <string name="v7_preference_off">OFF</string>
     <string name="v7_preference_on">ON</string>
     <string name="view_mode">View mode</string>
-    <string name="action_afk_mode">AFK Mode (Save Battery/CPU)</string>
-    <string name="afk_mode_running">🌙 AFK MODE ACTIVE</string>
-    <string name="afk_mode_time">AFK Time: %s</string>
-    <string name="afk_mode_stats">RAM: %1$d MB  |  CPU: %2$.1f%%</string>
-    <string name="afk_mode_tip">Touch screen or press any key to return</string>
     <string name="pref_background_run_title">Run in background when minimized / screen off</string>
     <string name="pref_background_run_summary">Keep network connection and game running continuously when screen is off or switching apps</string>
 
