@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <ListPreference
+        android:defaultValue="light"
+        android:entries="@array/pref_theme_entries"
+        android:entryValues="@array/pref_theme_values"
+        android:icon="@drawable/ic_setting_theme"
+        android:key="pref_theme"
+        android:summary="@string/pref_requires_restart_summary"
+        android:title="@string/pref_theme_title" />
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:icon="@drawable/ic_setting_enable_action_bar"
+        android:key="pref_actionbar_switch"
+        android:summary="@string/pref_enable_actionbar_summary"
+        android:title="@string/pref_enable_actionbar_title" />
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:icon="@drawable/ic_setting_enable_statusbar"
+        android:key="pref_statusbar_switch"
+        android:summary="@string/pref_enable_actionbar_summary"
+        android:title="@string/pref_enable_statusbar_title" />
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:icon="@drawable/ic_setting_keep_screen_on"
+        android:key="pref_wakelock_switch"
+        android:title="@string/pref_wakelock_title" />
+    <ListPreference
+        android:defaultValue="name"
+        android:entries="@array/pref_app_sort_entries"
+        android:entryValues="@array/pref_app_sort_values"
+        android:icon="@drawable/ic_setting_sort"
+        android:key="pref_app_sort"
+        android:summary="@string/pref_requires_restart_summary"
+        android:title="@string/pref_app_sort_title" />
+    <PreferenceCategory android:title="Quản lý bộ nhớ">
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="pref_force_gc"
+            android:summary="Tự động dọn dẹp bộ nhớ khi vượt ngưỡng hoặc định kỳ"
+            android:title="Kích hoạt dọn dẹp tự động" />
+        <EditTextPreference
+            android:defaultValue="0"
+            android:dependency="pref_force_gc"
+            android:inputType="number"
+            android:key="pref_gc_threshold"
+            android:summary="Dọn dẹp khi RAM hệ thống vượt quá mức này (MB). Đặt 0 để tắt."
+            android:title="Ngưỡng RAM dọn dẹp (MB)" />
+        <EditTextPreference
+            android:defaultValue="0"
+            android:dependency="pref_force_gc"
+            android:inputType="number"
+            android:key="pref_gc_interval"
+            android:summary="Dọn dẹp sau mỗi khoảng thời gian (giây). Đặt 0 để tắt."
+            android:title="Khoảng thời gian định kỳ (s)" />
+    </PreferenceCategory>
+    <Preference
+        android:icon="@drawable/ic_setting_default"
+        android:key="pref_default_settings"
+        android:title="@string/pref_default_settings" />
+    <Preference
+        android:icon="@drawable/ic_setting_folder"
+        android:key="emulator_dir"
+        android:title="@string/pref_emulator_dir" />
+</androidx.preference.PreferenceScreen>

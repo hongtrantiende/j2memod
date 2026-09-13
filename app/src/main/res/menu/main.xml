@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:id="@id/action_search" android:title="@string/search" app:actionViewClass="androidx.appcompat.widget.SearchView" app:showAsAction="ifRoom" />
+    <item android:icon="@drawable/ic_grid" android:id="@id/action_view_mode" android:title="@string/view_mode" app:showAsAction="always" />
+    <item android:icon="@drawable/ic_setting_sort" android:id="@id/action_sort" android:title="@string/sort" app:showAsAction="always" />
+    <item android:id="@id/action_ip_redirect" android:title="@string/ip_redirect" app:showAsAction="never" />
+    <item android:id="@id/action_about" android:title="@string/about" app:showAsAction="never" />
+    <item android:id="@id/action_settings" android:title="@string/action_settings" app:showAsAction="never" />
+    <item android:id="@id/action_profiles" android:title="@string/profiles" app:showAsAction="never" />
+    <item android:id="@id/action_help" android:title="@string/help" app:showAsAction="never" />
+    <item android:id="@id/action_donate" android:title="@string/donate" app:showAsAction="never" />
+    <item android:id="@id/action_save_log" android:title="@string/save_log" app:showAsAction="never" />
+    <item android:id="@id/action_exit_app" android:title="@string/exit" app:showAsAction="never" />
+</menu>

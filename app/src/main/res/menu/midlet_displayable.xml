@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@id/action_common_settings" android:title="@string/common_settings">
+        <menu>
+            <group android:id="@id/action_group_common_settings">
+                <item android:id="@id/action_exit_midlet" android:title="@string/exit" />
+                <item android:id="@id/action_save_log" android:title="@string/save_log" />
+                <item android:id="@id/action_log_console" android:title="@string/log_console" />
+                <item android:id="@id/action_chat_bubble" android:title="@string/chat_bubble" />
+            </group>
+        </menu>
+    </item>
+</menu>
