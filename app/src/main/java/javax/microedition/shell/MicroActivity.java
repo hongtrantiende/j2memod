@@ -240,9 +240,9 @@ public class MicroActivity extends AppCompatActivity {
 	private void openNewTab(int count) {
 		String path = getIntent().getDataString();
 		if (path == null || path.isEmpty()) return;
-		int currentCount = TabManager.get().getTabs().size();
-		for (int i = 0; i < count && currentCount + i < 20; i++) {
-			Config.startNewTab(this, appName, path, currentCount + i);
+		for (int i = 0; i < count && TabManager.get().getTabCount() < 20; i++) {
+			int slot = TabManager.get().nextSlot();
+			Config.startNewTab(this, appName, path, slot);
 		}
 	}
 

@@ -441,18 +441,14 @@ public class FloatingBubbleService extends Service {
             int maxNew = 20 - TabManager.get().getTabCount();
             if (count > maxNew) count = maxNew;
 
-            // Mo count tab moi, moi cach nhau 1.5s de tranh crash
+            // Mo count tab moi lien tiep, khong delay
             final int finalCount = count;
             final String name = currentAppName;
             final String path = currentAppPath;
-            new Thread(() -> {
-                for (int idx = 0; idx < finalCount; idx++) {
-                    int slot = TabManager.get().nextSlot();
-                    final int fSlot = slot;
-                    handler.post(() -> Config.startNewTab(FloatingBubbleService.this, name, path, fSlot));
-                    try { Thread.sleep(1500); } catch (InterruptedException e) { break; }
-                }
-            }).start();
+            for (int idx = 0; idx < finalCount; idx++) {
+                int slot = TabManager.get().nextSlot();
+                Config.startNewTab(FloatingBubbleService.this, name, path, slot);
+            }
             Toast.makeText(this, "Dang mo " + finalCount + " man moi...", Toast.LENGTH_SHORT).show();
         });
 
