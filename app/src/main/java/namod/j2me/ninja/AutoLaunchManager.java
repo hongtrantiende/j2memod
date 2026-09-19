@@ -59,14 +59,17 @@ public class AutoLaunchManager {
                 killGameIfRunning();
                 Thread.sleep(1500); // chờ MicroActivity tắt hẳn
 
-                // 2. Ghi RMS acc/pass → game sẽ đọc khi khởi động mới
+                // 2. Ghi RMS acc/pass → game sẽ đọc khi khởi động mới (pre-fill form)
                 preWriteRmsCredentials(account.username, account.password);
 
-                // 3. Mở game (đọc RMS mới → tự điền username/password)
-                startGame(jarPath);
+                // 3. Set System property → MicroLoader.scheduleGameLogin() sẽ đọc
+                //    và inject SelectServerScr.uname/pass + gọi LoginScr.gameAB()
+                System.setProperty(PROP_AUTO_LOGIN,
+                        account.username + "|" + account.password);
+                Log.i(TAG, "Set ninja.auto_login for: " + account.username);
 
-                // 4. Fallback: sau 8s gửi lệnh chat "dn user pass" nếu cần
-                scheduleAutoLoginCommand(account.username, account.password);
+                // 4. Mở game
+                startGame(jarPath);
 
                 if (onSuccess != null) mainHandler.post(onSuccess);
             } catch (Exception e) {
@@ -76,6 +79,7 @@ public class AutoLaunchManager {
             }
         });
     }
+
 
     /**
      * Gửi broadcast CLOSE_GAME để kill MicroActivity đang chạy (nếu có).

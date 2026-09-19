@@ -177,11 +177,70 @@ public class MicroLoader {
 				dexOptDir.getAbsolutePath(), context.getClassLoader(), resDir);
 		Log.i(TAG, "loadMIDletList main: " + mainClass + " from dex:" + dexPaths);
 		Log.i(TAG, "MIDlet-Name: " + AppClassLoader.getName());
+
+		// ── Auto-login hook ─────────────────────────────────────────────
+		// Nếu có property "ninja.auto_login" = "user|pass", inject vào SelectServerScr
+		// và gọi LoginScr.gameAB() để tự đăng nhập sau khi login screen hiện ra.
+		String autoLogin = System.getProperty("ninja.auto_login");
+		if (autoLogin != null && autoLogin.contains("|")) {
+			String[] parts = autoLogin.split("\\|", 2);
+			String user = parts[0].trim();
+			String pass = parts[1].trim();
+			scheduleGameLogin(loader, user, pass);
+		}
+		// ────────────────────────────────────────────────────────────────
+
 		//noinspection unchecked
 		Class<MIDlet> clazz = (Class<MIDlet>) loader.loadClass(mainClass);
 		Constructor<MIDlet> init = clazz.getDeclaredConstructor();
 		init.setAccessible(true);
 		return init.newInstance();
+	}
+
+	/**
+	 * Inject credentials vào game sau khi login screen sẫn sàng (~4s sau khi boot).
+	 * Mié phỏng lại đúng những gì AutoLogin.doLogin() làm:
+	 *   SelectServerScr.uname = username
+	 *   SelectServerScr.pass  = password
+	 *   LoginScr.gameAB()      // submit login
+	 */
+	private void scheduleGameLogin(ClassLoader loader, String username, String password) {
+		new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() ->
+			new Thread(() -> {
+				for (int attempt = 0; attempt < 6; attempt++) {
+					try {
+						if (attempt > 0) Thread.sleep(3000);
+
+						// Set SelectServerScr.uname & .pass
+						Class<?> sss = loader.loadClass("SelectServerScr");
+						java.lang.reflect.Field fUser = sss.getField("uname");
+						java.lang.reflect.Field fPass = sss.getField("pass");
+						fUser.set(null, username);
+						fPass.set(null, password);
+						android.util.Log.i("MicroLoader", "[AutoLogin] Injected uname/pass: " + username);
+
+						// Kiểm tra loginScr != null rồi gọi gameAB()
+						Class<?> gc = loader.loadClass("GameCanvas");
+						java.lang.reflect.Field fLoginScr = gc.getField("loginScr");
+						Object loginScr = fLoginScr.get(null);
+						if (loginScr == null) {
+							android.util.Log.w("MicroLoader", "[AutoLogin] loginScr null, retry " + attempt);
+							continue;
+						}
+
+						// Gọi LoginScr.gameAB() → submit login
+						java.lang.reflect.Method gameAB = loginScr.getClass().getMethod("gameAB");
+						gameAB.invoke(loginScr);
+						android.util.Log.i("MicroLoader", "[AutoLogin] LoginScr.gameAB() called! Login submitted.");
+						System.clearProperty("ninja.auto_login"); // clear sau khi dùng
+						break; // thành công
+
+					} catch (Exception e) {
+						android.util.Log.w("MicroLoader", "[AutoLogin] attempt " + attempt + ": " + e.getMessage());
+					}
+				}
+			}).start(),
+		4000L); // chờ 4s cho game boot xong
 	}
 
 	private void setProperties() {
