@@ -78,6 +78,7 @@ import namod.j2me.appsdb.AppRepository;
 import namod.j2me.config.Config;
 import namod.j2me.config.ConfigActivity;
 import namod.j2me.config.ProfilesActivity;
+import namod.j2me.tabs.TabManager;
 import namod.j2me.donations.DonationsActivity;
 import namod.j2me.filepicker.FilteredFilePickerActivity;
 import namod.j2me.filepicker.FilteredFilePickerFragment;
@@ -440,7 +441,10 @@ public class AppsListFragment extends Fragment {
 		int index = info.position;
 		AppItem appItem = adapter.getItem(index);
 		int itemId = item.getItemId();
-		if (itemId == R.id.action_context_settings) {
+		if (itemId == R.id.action_open_multi_tab) {
+			showMultiTabDialog(appItem);
+			return true;
+		} else if (itemId == R.id.action_context_settings) {
 			Config.startApp(getActivity(), appItem.getTitle(), appItem.getPath(), true);
 			return true;
 		} else if (itemId == R.id.action_context_delete) {
@@ -465,6 +469,43 @@ public class AppsListFragment extends Fragment {
 			return true;
 		}
 		return super.onContextItemSelected(item);
+	}
+
+	private void showMultiTabDialog(AppItem item) {
+		int remaining = 20 - TabManager.get().getTabCount();
+		if (remaining <= 0) {
+			Toast.makeText(getContext(), "Da dat gioi han 20 tab!", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		final EditText input = new EditText(requireContext());
+		input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+		input.setText("1");
+		input.setSelectAllOnFocus(true);
+
+		new AlertDialog.Builder(requireContext())
+				.setTitle("Mo nhieu man")
+				.setMessage("Nhap so man muon mo them (tong cong toi da " + remaining + " man)")
+				.setView(input)
+				.setNegativeButton("CANCEL", null)
+				.setPositiveButton("MO", (d, w) -> {
+					String val = input.getText().toString().trim();
+					int count;
+					try { count = Integer.parseInt(val); } catch (Exception e) { return; }
+					if (count <= 0) return;
+					int maxNew = 20 - TabManager.get().getTabCount();
+					if (count > maxNew) count = maxNew;
+					final int finalCount = count;
+					new Thread(() -> {
+						for (int i = 0; i < finalCount; i++) {
+							int slot = TabManager.get().nextSlot();
+							requireActivity().runOnUiThread(() ->
+									Config.startNewTab(requireContext(), item.getTitle(), item.getPath(), slot));
+							try { Thread.sleep(1500); } catch (InterruptedException e2) { break; }
+						}
+					}).start();
+					Toast.makeText(getContext(), "Dang mo " + finalCount + " man...", Toast.LENGTH_SHORT).show();
+				})
+				.show();
 	}
 
 	private void showRenameDialog(AppItem item) {

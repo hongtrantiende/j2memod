@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu
   xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/action_open_multi_tab" android:title="Mo nhieu tab (+)" />
     <item android:id="@id/action_context_shortcut" android:title="@string/action_context_shortcut" />
     <item android:id="@id/action_context_rename" android:title="@string/action_context_rename" />
     <item android:id="@id/action_context_settings" android:title="@string/action_settings" />
