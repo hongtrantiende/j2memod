@@ -55,10 +55,12 @@ public class AutoLaunchManager {
                 String jarPath = prepareJar();
                 if (jarPath == null) throw new Exception("Không tìm thấy NinjaNamod.jar!");
 
-                ServerConfig.Server server = ServerConfig.getByName(account.serverName);
-                prepareProfile(jarPath, server);
-                injectAutoLogin(account.username, account.password);
+                // 1. Ghi RMS để lần sau khởi động tự điền sẵn
+                preWriteRmsCredentials(account.username, account.password);
+                // 2. Mở game
                 startGame(jarPath);
+                // 3. Sau 6s, gửi lệnh chat "dn user pass" để login ngay
+                scheduleAutoLoginCommand(account.username, account.password);
 
                 if (onSuccess != null) mainHandler.post(onSuccess);
             } catch (Exception e) {
@@ -80,11 +82,12 @@ public class AutoLaunchManager {
                               + ": " + acc.username));
                 try {
                     String jarPath = prepareJar();
-                    if (jarPath != null) {
+                if (jarPath != null) {
                         ServerConfig.Server server = ServerConfig.getByName(acc.serverName);
                         prepareProfile(jarPath, server);
-                        injectAutoLogin(acc.username, acc.password);
+                        preWriteRmsCredentials(acc.username, acc.password);
                         startGame(jarPath);
+                        scheduleAutoLoginCommand(acc.username, acc.password);
                         if (i < accounts.size() - 1) {
                             Thread.sleep(delayMs);
                         }
@@ -140,14 +143,106 @@ public class AutoLaunchManager {
     }
 
     /**
-     * Inject thông tin login vào System property.
-     * MicroLoader sẽ đọc và set vào MIDlet system props.
-     * Game (Code.java) đọc qua System.getProperty("ninja.auto_login").
+     * Ghi sẵn thông tin đăng nhập vào RMS storage của game.
+     * Game đọc key "acc" (username) và "pass" (password) khi khởi động.
+     * Path: /sdcard/J2ME-Loader/data/NinjaNamod/
      */
-    private void injectAutoLogin(String username, String password) {
-        String val = username + "|" + password;
-        System.setProperty(PROP_AUTO_LOGIN, val);
-        Log.i(TAG, "Injected auto_login: " + username);
+    private void preWriteRmsCredentials(String username, String password) {
+        try {
+            // RMS path = Config.getDataDir() + "NinjaNamod/"
+            // = /storage/emulated/0/J2ME-Loader/data/NinjaNamod/
+            java.io.File rmsDir = new java.io.File(
+                    namod.j2me.config.Config.getDataDir(), "NinjaNamod");
+            if (!rmsDir.exists()) rmsDir.mkdirs();
+
+            writeRmsRecord(rmsDir, "acc", username.getBytes("UTF-8"));
+            writeRmsRecord(rmsDir, "pass", password.getBytes("UTF-8"));
+            Log.i(TAG, "Pre-wrote RMS acc=" + username + " to " + rmsDir.getAbsolutePath());
+        } catch (Exception e) {
+            Log.w(TAG, "preWriteRmsCredentials failed (non-fatal): " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ghi 1 RMS record theo đúng format của J2MELoader RecordStoreImpl:
+     *
+     * Header file (.rsh):
+     *   [4D 49 44 52 4D 53] MIDRMS magic
+     *   [03] versionMajor
+     *   [00] versionMinor
+     *   [00] encrypted flag
+     *   writeUTF(storeName)   ← 2-byte length + UTF-8 bytes
+     *   writeLong(lastModified = currentTimeMillis)
+     *   writeInt(version = 1)
+     *   writeInt(0)  authMode
+     *   writeByte(0) writable
+     *   writeInt(1)  size = 1 record
+     *
+     * Record file (.1.rsr):
+     *   writeInt(1)             recordId
+     *   writeInt(0)             tag
+     *   writeInt(data.length)   data size
+     *   write(data)             raw bytes
+     */
+    private void writeRmsRecord(java.io.File rmsDir, String storeName, byte[] data)
+            throws Exception {
+        // ── Record file: storeName.1.rsr ──────────────────────────────────
+        java.io.File recFile = new java.io.File(rmsDir, storeName + ".1.rsr");
+        java.io.DataOutputStream rec = new java.io.DataOutputStream(
+                new java.io.FileOutputStream(recFile));
+        rec.writeInt(1);            // recordId = 1
+        rec.writeInt(0);            // tag (unused)
+        rec.writeInt(data.length);  // data length
+        rec.write(data);            // data bytes
+        rec.close();
+
+        // ── Header file: storeName.rsh ────────────────────────────────────
+        java.io.File hdrFile = new java.io.File(rmsDir, storeName + ".rsh");
+        java.io.DataOutputStream hdr = new java.io.DataOutputStream(
+                new java.io.FileOutputStream(hdrFile));
+        // Magic: "MIDRMS"
+        hdr.write(new byte[]{0x4D, 0x49, 0x44, 0x52, 0x4D, 0x53});
+        hdr.write(0x03); // versionMajor
+        hdr.write(0x00); // versionMinor
+        hdr.write(0x00); // encrypted = false
+        hdr.writeUTF(storeName);                     // store name
+        hdr.writeLong(System.currentTimeMillis());   // lastModified
+        hdr.writeInt(1);   // version
+        hdr.writeInt(0);   // authMode
+        hdr.writeByte(0);  // writable
+        hdr.writeInt(1);   // size = 1 record
+        hdr.close();
+
+        Log.d(TAG, "Wrote RMS: " + hdrFile.getName() + " + " + recFile.getName()
+                + " (" + data.length + " bytes)");
+    }
+
+
+    /**
+     * Sau khi game mở, chờ ~6s rồi gửi lệnh chat "dn user pass"
+     * qua reflection gọi ChatRouter.checkAll() để trigger AutoLogin.doLogin()
+     */
+    private void scheduleAutoLoginCommand(String username, String password) {
+        // Chờ game load xong màn hình đăng nhập
+        mainHandler.postDelayed(() -> {
+            executor.execute(() -> {
+                try {
+                    String cmd = "dn " + username + " " + password;
+                    // Reflection gọi ChatRouter.checkAll(cmd)
+                    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                    if (cl == null) cl = ctx.getClassLoader();
+                    Class<?> chatRouter = cl.loadClass("ChatRouter");
+                    java.lang.reflect.Method checkAll =
+                            chatRouter.getMethod("checkAll", String.class);
+                    checkAll.invoke(null, cmd);
+                    Log.i(TAG, "Sent auto-login command: dn " + username);
+                } catch (Exception e) {
+                    Log.w(TAG, "scheduleAutoLoginCommand reflection failed: " + e.getMessage());
+                    // Fallback: dùng System property để game đọc ở màn hình login
+                    System.setProperty("ninja.auto_login", username + "|" + password);
+                }
+            });
+        }, 6000); // chờ 6 giây
     }
 
     /** Khởi động MicroActivity với NinjaNamod — chạy trong converted/NinjaNamod/. */
