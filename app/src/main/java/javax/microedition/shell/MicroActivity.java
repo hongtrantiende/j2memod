@@ -227,19 +227,32 @@ public class MicroActivity extends AppCompatActivity {
 		session.initializeApp(path, name, dataDir);
 		SlotRegistry.setFocusedSlot(slotIndex);
 
-		// Tao cell (FrameLayout) va them vao container
-		SlotCell cell = newCell(slotIndex);
-		session.setContainer(cell);
-
-		// Init MicroLoader cho slot nay
-		Config.setSlotIndex(slotIndex);
-		MicroLoader loader = new MicroLoader(this, path);
-		if (!loader.init()) {
-			Toast.makeText(this, "Khong the khoi tao slot " + (slotIndex + 1), Toast.LENGTH_SHORT).show();
-			SlotRegistry.remove(session);
-			return;
+		// Container: slot 0 dung layout chinh, slot khac dung SlotCell rieng
+		if (slotIndex == 0) {
+			session.setContainer(layout);
+		} else {
+			SlotCell cell = newCell(slotIndex);
+			session.setContainer(cell);
 		}
-		loader.applyConfiguration();
+
+		// Set currentSession cho UI thread
+		currentSession = session;
+
+		// Init MicroLoader
+		MicroLoader loader;
+		if (slotIndex == 0) {
+			// Dung microLoader da init tu onCreate
+			loader = microLoader;
+		} else {
+			Config.setSlotIndex(slotIndex);
+			loader = new MicroLoader(this, path);
+			if (!loader.init()) {
+				Toast.makeText(this, "Khong the khoi tao slot " + (slotIndex + 1), Toast.LENGTH_SHORT).show();
+				SlotRegistry.remove(session);
+				return;
+			}
+			loader.applyConfiguration();
+		}
 		session.microLoader = loader;
 
 		// Load MIDlet
@@ -254,7 +267,6 @@ public class MicroActivity extends AppCompatActivity {
 			showErrorDialog(e.toString());
 		}
 
-		SlotRegistry.bind(SlotRegistry.focused());
 		showFocusedSlot();
 		refreshTabBar();
 	}
@@ -483,9 +495,8 @@ public class MicroActivity extends AppCompatActivity {
 		}
 	}
 
-	// =====================================================
-	// DISPLAYABLE MANAGEMENT
-	// =====================================================
+	/** Session duoc capture khi setCurrent duoc goi tu game thread */
+	private volatile SlotSession currentSession;
 
 	private SimpleEvent msgSetCurrent = new SimpleEvent() {
 		@Override
@@ -501,8 +512,8 @@ public class MicroActivity extends AppCompatActivity {
 				return;
 			}
 
-			// Tim session tuong ung cua current displayable
-			SlotSession session = SlotRegistry.current();
+			// Dung session da capture tu game thread (khong dung ThreadLocal tren UI thread)
+			SlotSession session = currentSession;
 			FrameLayout targetContainer = layout; // fallback
 			if (session != null && session.container != null) {
 				targetContainer = session.container;
@@ -542,10 +553,14 @@ public class MicroActivity extends AppCompatActivity {
 
 	public void setCurrent(Displayable displayable) {
 		current = displayable;
-		// Cap nhat current trong session tuong ung
+		// Capture session tu game thread (InheritableThreadLocal co gia tri o day)
 		SlotSession session = SlotRegistry.current();
 		if (session != null) {
 			session.setCurrent(displayable);
+			currentSession = session;
+		} else {
+			// Fallback: dung focused session
+			currentSession = SlotRegistry.focused();
 		}
 		ViewHandler.postEvent(msgSetCurrent);
 	}

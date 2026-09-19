@@ -117,65 +117,77 @@ public class MicroLoader {
 
 	MIDlet loadMIDlet(String mainClass) throws ClassNotFoundException, InstantiationException,
 			IllegalAccessException, NoSuchMethodException, InvocationTargetException, IOException {
-		File codeCacheDir = SDK_INT >= LOLLIPOP ? context.getCodeCacheDir() : context.getCacheDir();
-		File dexOptDir = new File(codeCacheDir, Config.DEX_OPT_CACHE_DIR);
-		if (dexOptDir.exists()) {
-			FileUtils.clearDirectory(dexOptDir);
-		} else if (!dexOptDir.mkdir()) {
-			throw new IOException("Cant't create directory: [" + dexOptDir + ']');
-		}
 
-		File appDir = new File(path);
-		File[] dexFiles = appDir.listFiles((dir, name) -> name.endsWith(".dex"));
-		if (dexFiles == null || dexFiles.length == 0) {
-			File defaultDex = new File(path, Config.MIDLET_DEX_FILE);
-			if (defaultDex.exists()) {
-				dexFiles = new File[]{defaultDex};
-			} else {
-				throw new FileNotFoundException("No dex files found in " + path);
+		ClassLoader loader;
+
+		// Neu da co AppClassLoader (tab 2+ cung game) -> dung lai, KHONG tao moi
+		if (AppClassLoader.instance != null) {
+			loader = AppClassLoader.instance;
+			Log.i(TAG, "loadMIDlet reusing existing ClassLoader for slot " + SlotRegistry.getFocusedSlot());
+		} else {
+			// Tab 1: tao ClassLoader moi
+			File codeCacheDir = SDK_INT >= LOLLIPOP ? context.getCodeCacheDir() : context.getCacheDir();
+			File dexOptDir = new File(codeCacheDir, Config.DEX_OPT_CACHE_DIR);
+			if (dexOptDir.exists()) {
+				FileUtils.clearDirectory(dexOptDir);
+			} else if (!dexOptDir.mkdir()) {
+				throw new IOException("Cant't create directory: [" + dexOptDir + ']');
 			}
-		}
 
-		Arrays.sort(dexFiles, (f1, f2) -> {
-			String n1 = f1.getName();
-			String n2 = f2.getName();
-			if (n1.equals("converted.dex")) return -1;
-			if (n2.equals("converted.dex")) return 1;
-			int num1 = extractDexNumber(n1);
-			int num2 = extractDexNumber(n2);
-			return Integer.compare(num1, num2);
-		});
-
-		String safeFolderName = (appPath.startsWith("/") ? appPath.substring(1) : appPath).replaceAll("[^a-zA-Z0-9_.-]", "_");
-		File appDexDir = new File(codeCacheDir, "midlet_dex_" + safeFolderName);
-		if (!appDexDir.exists() && !appDexDir.mkdirs()) {
-			throw new IOException("Can't create dex directory: [" + appDexDir + ']');
-		}
-
-		StringBuilder dexPaths = new StringBuilder();
-		for (int i = 0; i < dexFiles.length; i++) {
-			File srcDex = dexFiles[i];
-			File targetDex = new File(appDexDir, srcDex.getName());
-			if (!targetDex.exists() || targetDex.length() != srcDex.length() || targetDex.lastModified() < srcDex.lastModified()) {
-				if (targetDex.exists()) {
-					targetDex.setWritable(true);
-					targetDex.delete();
+			File appDir = new File(path);
+			File[] dexFiles = appDir.listFiles((dir, name) -> name.endsWith(".dex"));
+			if (dexFiles == null || dexFiles.length == 0) {
+				File defaultDex = new File(path, Config.MIDLET_DEX_FILE);
+				if (defaultDex.exists()) {
+					dexFiles = new File[]{defaultDex};
+				} else {
+					throw new FileNotFoundException("No dex files found in " + path);
 				}
-				FileUtils.copyFileUsingChannel(srcDex, targetDex);
-				targetDex.setReadOnly();
-			} else if (targetDex.canWrite()) {
-				targetDex.setReadOnly();
 			}
-			if (i > 0) {
-				dexPaths.append(File.pathSeparator);
+
+			Arrays.sort(dexFiles, (f1, f2) -> {
+				String n1 = f1.getName();
+				String n2 = f2.getName();
+				if (n1.equals("converted.dex")) return -1;
+				if (n2.equals("converted.dex")) return 1;
+				int num1 = extractDexNumber(n1);
+				int num2 = extractDexNumber(n2);
+				return Integer.compare(num1, num2);
+			});
+
+			String safeFolderName = (appPath.startsWith("/") ? appPath.substring(1) : appPath).replaceAll("[^a-zA-Z0-9_.-]", "_");
+			File appDexDir = new File(codeCacheDir, "midlet_dex_" + safeFolderName);
+			if (!appDexDir.exists() && !appDexDir.mkdirs()) {
+				throw new IOException("Can't create dex directory: [" + appDexDir + ']');
 			}
-			dexPaths.append(targetDex.getAbsolutePath());
+
+			StringBuilder dexPaths = new StringBuilder();
+			for (int i = 0; i < dexFiles.length; i++) {
+				File srcDex = dexFiles[i];
+				File targetDex = new File(appDexDir, srcDex.getName());
+				if (!targetDex.exists() || targetDex.length() != srcDex.length() || targetDex.lastModified() < srcDex.lastModified()) {
+					if (targetDex.exists()) {
+						targetDex.setWritable(true);
+						targetDex.delete();
+					}
+					FileUtils.copyFileUsingChannel(srcDex, targetDex);
+					targetDex.setReadOnly();
+				} else if (targetDex.canWrite()) {
+					targetDex.setReadOnly();
+				}
+				if (i > 0) {
+					dexPaths.append(File.pathSeparator);
+				}
+				dexPaths.append(targetDex.getAbsolutePath());
+			}
+
+			File resDir = new File(path, Config.MIDLET_RES_DIR);
+			loader = new AppClassLoader(dexPaths.toString(),
+					dexOptDir.getAbsolutePath(), context.getClassLoader(), resDir);
+			Log.i(TAG, "loadMIDlet created new ClassLoader, dex:" + dexPaths);
 		}
 
-		File resDir = new File(path, Config.MIDLET_RES_DIR);
-		ClassLoader loader = new AppClassLoader(dexPaths.toString(),
-				dexOptDir.getAbsolutePath(), context.getClassLoader(), resDir);
-		Log.i(TAG, "loadMIDletList main: " + mainClass + " from dex:" + dexPaths);
+		Log.i(TAG, "loadMIDletList main: " + mainClass);
 		Log.i(TAG, "MIDlet-Name: " + AppClassLoader.getName());
 
 		//noinspection unchecked
