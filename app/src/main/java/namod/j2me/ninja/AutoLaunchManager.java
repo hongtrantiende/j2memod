@@ -62,11 +62,14 @@ public class AutoLaunchManager {
                 // 2. Ghi RMS acc/pass → game sẽ đọc khi khởi động mới (pre-fill form)
                 preWriteRmsCredentials(account.username, account.password);
 
-                // 3. Set System property → MicroLoader.scheduleGameLogin() sẽ đọc
-                //    và inject SelectServerScr.uname/pass + gọi LoginScr.gameAB()
-                System.setProperty(PROP_AUTO_LOGIN,
-                        account.username + "|" + account.password);
-                Log.i(TAG, "Set ninja.auto_login for: " + account.username);
+                // 3. Ghi SharedPreferences → MicroLoader đọc từ process :midlet
+                //    (System.setProperty không share cross-process!)
+                ctx.getSharedPreferences("ninja_autologin", android.content.Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("user", account.username)
+                        .putString("pass", account.password)
+                        .apply();
+                Log.i(TAG, "Saved auto_login prefs for: " + account.username);
 
                 // 4. Mở game
                 startGame(jarPath);

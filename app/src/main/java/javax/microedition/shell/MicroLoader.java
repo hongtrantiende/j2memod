@@ -179,13 +179,16 @@ public class MicroLoader {
 		Log.i(TAG, "MIDlet-Name: " + AppClassLoader.getName());
 
 		// ── Auto-login hook ─────────────────────────────────────────────
-		// Nếu có property "ninja.auto_login" = "user|pass", inject vào SelectServerScr
-		// và gọi LoginScr.gameAB() để tự đăng nhập sau khi login screen hiện ra.
-		String autoLogin = System.getProperty("ninja.auto_login");
-		if (autoLogin != null && autoLogin.contains("|")) {
-			String[] parts = autoLogin.split("\\|", 2);
-			String user = parts[0].trim();
-			String pass = parts[1].trim();
+		// Đọc credentials từ SharedPreferences (cross-process safe).
+		// Main process ghi vào "ninja_autologin", MicroLoader (:midlet) đọc ra.
+		android.content.SharedPreferences prefs = context.getSharedPreferences(
+				"ninja_autologin", android.content.Context.MODE_PRIVATE);
+		String user = prefs.getString("user", null);
+		String pass = prefs.getString("pass", null);
+		if (user != null && pass != null && !user.isEmpty()) {
+			Log.i(TAG, "[AutoLogin] Got credentials for: " + user + " — scheduling login...");
+			// Xóa ngay để tránh login lại lần sau
+			prefs.edit().remove("user").remove("pass").apply();
 			scheduleGameLogin(loader, user, pass);
 		}
 		// ────────────────────────────────────────────────────────────────
