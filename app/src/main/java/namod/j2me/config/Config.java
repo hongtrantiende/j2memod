@@ -93,9 +93,32 @@ public class Config {
 			Intent intent = new Intent(Intent.ACTION_DEFAULT, Uri.parse(path),
 					context, MicroActivity.class);
 			intent.putExtra(ConfigActivity.MIDLET_NAME_KEY, name);
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 			context.startActivity(intent);
 		}
 	}
+
+	/**
+	 * Mo 1 tab game moi doc lap (khac MicroActivity instance).
+	 * Dung voi nut + trong FloatingBubbleService.
+	 * @param slotIndex Thu muc du lieu rieng (0=NinjaNamod, 1=NinjaNamod2...)
+	 */
+	public static void startNewTab(Context context, String name, String path, int slotIndex) {
+		File file = new File(Config.configsDir, path);
+		if (!file.exists()) {
+			// Neu chua co config -> mo settings truoc
+			startApp(context, name, path, true);
+			return;
+		}
+		Intent intent = new Intent(Intent.ACTION_DEFAULT, Uri.parse(path),
+				context, MicroActivity.class);
+		intent.putExtra(ConfigActivity.MIDLET_NAME_KEY, name);
+		intent.putExtra("tab_slot_index", slotIndex);
+		// FLAG_MULTIPLE_TASK: tao task Android moi -> MicroActivity moi hoan toan
+		intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+		context.startActivity(intent);
+	}
+
 
 	private static void initDirs(String path) {
 		emulatorDir = path;

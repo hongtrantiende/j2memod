@@ -76,6 +76,7 @@ import namod.j2me.FloatingBubbleService;
 import namod.j2me.R;
 import namod.j2me.config.Config;
 import namod.j2me.config.ConfigActivity;
+import namod.j2me.tabs.TabManager;
 import namod.j2me.util.ConsoleOutput;
 import namod.j2me.util.LogConsoleDialogFragment;
 import namod.j2me.util.LogUtils;
@@ -96,6 +97,7 @@ public class MicroActivity extends AppCompatActivity {
 	private Toolbar toolbar;
 	private MicroLoader microLoader;
 	private String appName;
+	private int tabSlotIndex = 0; // slot du lieu rieng biet
 
 	private final BroadcastReceiver closeReceiver = new BroadcastReceiver() {
 		@Override
@@ -185,6 +187,11 @@ public class MicroActivity extends AppCompatActivity {
 			e.printStackTrace();
 			showErrorDialog(e.toString());
 		}
+
+		// Dang ky tab voi TabManager
+		tabSlotIndex = getIntent().getIntExtra("tab_slot_index", 0);
+		String tabLabel = "Tab " + (tabSlotIndex + 1);
+		TabManager.get().addTab(getTaskId(), tabSlotIndex, tabLabel);
 	}
 
 	@Override
@@ -230,6 +237,8 @@ public class MicroActivity extends AppCompatActivity {
 		}
 		ConsoleOutput.clear();
 		super.onDestroy();
+		// Huy dang ky tab
+		TabManager.get().removeTab(getTaskId());
 		if (isFinishing()) {
 			if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
 				Process.killProcess(Process.myPid());

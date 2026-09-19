@@ -99,7 +99,7 @@
             android:exported="false"
             android:theme="@style/AppTheme.NoActionBar"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode"
-            android:launchMode="singleTask"
+            android:launchMode="standard"
             android:process=":midlet" />
         <activity
             android:name=".settings.SettingsActivity"

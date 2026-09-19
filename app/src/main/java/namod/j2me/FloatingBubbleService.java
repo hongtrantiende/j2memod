@@ -37,8 +37,16 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import namod.j2me.applist.AppItem;
+import namod.j2me.config.Config;
+import namod.j2me.config.ConfigActivity;
 import namod.j2me.network.TabStatusManager;
+import namod.j2me.tabs.TabManager;
 import namod.j2me.util.AppUtils;
+
+import android.app.AlertDialog;
+import android.widget.EditText;
+import android.widget.HorizontalScrollView;
+import android.widget.ScrollView;
 
 import androidx.core.app.NotificationCompat;
 import androidx.preference.PreferenceManager;
@@ -73,6 +81,9 @@ public class FloatingBubbleService extends Service {
     private WindowManager windowManager;
     private WindowManager.LayoutParams windowParams;
     private View windowView;
+    /** Ten va duong dan JAR dang chay - de nhan ban tab moi */
+    private String currentAppName = "";
+    private String currentAppPath = "";
 
     public class BubbleTouchListener implements View.OnTouchListener {
         private float initialTouchX;
@@ -380,6 +391,131 @@ public class FloatingBubbleService extends Service {
         } catch (Throwable ignored) {}
     }
 
+    /**
+     * Hien thi dialog "Mo nhieu man" - nhap so tab muon mo them.
+     * Tuong tu chuc nang cua ban jar ghep x20.
+     */
+    private void showAddTabDialog() {
+        // Lay thong tin JAR dang chay tu MicroActivity hien tai
+        MicroActivity act = ContextHolder.getActivity();
+        if (act != null) {
+            android.content.Intent i = act.getIntent();
+            currentAppName = i.getStringExtra(ConfigActivity.MIDLET_NAME_KEY);
+            if (currentAppName == null) currentAppName = "Game";
+            if (i.getData() != null) currentAppPath = i.getData().toString();
+        }
+        if (currentAppPath == null || currentAppPath.isEmpty()) {
+            Toast.makeText(this, "Khong xac dinh duoc JAR dang chay", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Tao dialog "Mo nhieu man"
+        ContextThemeWrapper themeCtx = new ContextThemeWrapper(this, R.style.AppTheme);
+        AlertDialog.Builder builder = new AlertDialog.Builder(themeCtx);
+        builder.setTitle("Mo nhieu man");
+
+        LinearLayout layout = new LinearLayout(themeCtx);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(20), dpToPx(8), dpToPx(20), dpToPx(4));
+
+        TextView desc = new TextView(themeCtx);
+        desc.setText("Nhap so man muon mo them (tong cong toi da " + (100 - TabManager.get().getTabCount()) + " man)");
+        desc.setTextSize(13f);
+        layout.addView(desc);
+
+        EditText input = new EditText(themeCtx);
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setText("1");
+        input.setSelectAllOnFocus(true);
+        layout.addView(input);
+
+        builder.setView(layout);
+        builder.setNegativeButton("CANCEL", null);
+        builder.setPositiveButton("MO", (dialog, which) -> {
+            String val = input.getText().toString().trim();
+            if (val.isEmpty()) return;
+            int count;
+            try { count = Integer.parseInt(val); } catch (NumberFormatException e) { return; }
+            if (count <= 0) return;
+
+            int maxNew = 20 - TabManager.get().getTabCount();
+            if (count > maxNew) count = maxNew;
+
+            // Mo count tab moi, moi cach nhau 1.5s de tranh crash
+            final int finalCount = count;
+            final String name = currentAppName;
+            final String path = currentAppPath;
+            new Thread(() -> {
+                for (int idx = 0; idx < finalCount; idx++) {
+                    int slot = TabManager.get().nextSlot();
+                    final int fSlot = slot;
+                    handler.post(() -> Config.startNewTab(FloatingBubbleService.this, name, path, fSlot));
+                    try { Thread.sleep(1500); } catch (InterruptedException e) { break; }
+                }
+            }).start();
+            Toast.makeText(this, "Dang mo " + finalCount + " man moi...", Toast.LENGTH_SHORT).show();
+        });
+
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setType(
+                Build.VERSION.SDK_INT >= 26
+                    ? android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    : android.view.WindowManager.LayoutParams.TYPE_PHONE
+            );
+        }
+        dialog.show();
+    }
+
+    /**
+     * Cap nhat chip tab [1][2][3]... trong hang HorizontalScrollView.
+     * Moi chip khi tap se chuyen sang tab do.
+     */
+    @SuppressLint("SetTextI18n")
+    private void updateTabChips(java.util.List<TabManager.GameTab> tabs) {
+        if (this.windowView == null) return;
+        View scrollView = this.windowView.findViewById(R.id.tab_chip_scroll);
+        LinearLayout chipRow = this.windowView.findViewById(R.id.tab_chip_row);
+        if (scrollView == null || chipRow == null) return;
+
+        chipRow.removeAllViews();
+
+        if (tabs.size() <= 1) {
+            scrollView.setVisibility(View.GONE);
+            return;
+        }
+
+        scrollView.setVisibility(View.VISIBLE);
+        for (int i = 0; i < tabs.size(); i++) {
+            TabManager.GameTab tab = tabs.get(i);
+            TextView chip = new TextView(this);
+            chip.setText("" + (i + 1));
+            chip.setTextColor(0xFFFFFFFF);
+            chip.setTextSize(11f);
+            chip.setTypeface(null, android.graphics.Typeface.BOLD);
+            chip.setGravity(android.view.Gravity.CENTER);
+            chip.setPadding(dpToPx(10), dpToPx(2), dpToPx(10), dpToPx(2));
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dpToPx(10));
+            bg.setColor(0x4400E5FF);
+            bg.setStroke(1, 0x8800E5FF);
+            chip.setBackground(bg);
+
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dpToPx(20)
+            );
+            lp.setMarginStart(dpToPx(3));
+            lp.setMarginEnd(dpToPx(3));
+            chip.setLayoutParams(lp);
+
+            final int taskId = tab.taskId;
+            chip.setOnClickListener(v -> TabManager.get().switchToTab(FloatingBubbleService.this, taskId));
+            chipRow.addView(chip);
+        }
+    }
+
     private void triggerTabMenu() {
         Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
         if (currentDisplayable instanceof Canvas) {
@@ -427,17 +563,27 @@ public class FloatingBubbleService extends Service {
         if (tabBtn != null) {
             tabBtn.setOnClickListener(v -> triggerTabMenu());
             tabBtn.setOnLongClickListener(v -> {
-                // Short star press
                 Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
                 if (currentDisplayable instanceof Canvas) {
                     Canvas canvas = (Canvas) currentDisplayable;
                     canvas.postKeyPressed(Canvas.KEY_STAR);
                     canvas.postKeyReleased(Canvas.KEY_STAR);
-                    Toast.makeText(this, "Nhấn phím *", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Nhan phim *", Toast.LENGTH_SHORT).show();
                 }
                 return true;
             });
         }
+
+        // Nut [+] mo them tab game moi
+        View addTabBtn = this.windowView.findViewById(R.id.btn_add_tab);
+        if (addTabBtn != null) {
+            addTabBtn.setOnClickListener(v -> showAddTabDialog());
+        }
+
+        // Dang ky listener cap nhat chip tab
+        TabManager.get().addListener(tabs -> handler.post(() -> updateTabChips(tabs)));
+        // Hien thi chips ngay lan dau
+        updateTabChips(TabManager.get().getTabs());
 
         moveHandle.setOnTouchListener(new View.OnTouchListener() {
             private float initialTouchX;
