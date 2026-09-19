@@ -343,18 +343,50 @@ public class MicroActivity extends AppCompatActivity {
         selectSlot(slotIndex);
     }
 
-    /** Chuyen sang slot khac - chi doi view hien thi */
+    /** Chuyen sang slot khac - doi SlotCell hien thi trong slotHost */
     public void selectSlot(int slotIndex) {
         SlotCell cell = cellOf(slotIndex);
-        if (cell == null || SlotRegistry.getFocusedSlot() == slotIndex) return;
+        if (cell == null) return;
         SlotRegistry.setFocusedSlot(slotIndex);
         SlotSession sess = SlotRegistry.get(slotIndex);
         if (sess != null) SlotRegistry.bind(sess);
-        // Cap nhat Displayable trong layout chinh
+        showFocusedSlot();
+        // Cap nhat current cua activity theo slot focused
         if (sess != null && sess.current != null) {
-            setCurrent(sess.current);
+            current = sess.current;
         }
         refreshTabBar();
+    }
+
+    /** Hien thi SlotCell cua slot focused trong slotHost (thay layout chinh) */
+    private void showFocusedSlot() {
+        SlotCell cell = cellOf(SlotRegistry.getFocusedSlot());
+        if (cell == null && !cells.isEmpty()) {
+            cell = cells.get(cells.size() - 1);
+            SlotRegistry.setFocusedSlot(cell.slot);
+        }
+        if (cell == null) return;
+        // Neu slotHost ton tai: dua cell vao slotHost, slotHost dat trong layout
+        if (slotHost != null) {
+            if (slotHost.getChildCount() == 1 && slotHost.getChildAt(0) == cell) {
+                return; // Da hien thi roi
+            }
+            slotHost.removeAllViews();
+            android.view.ViewGroup parent = (android.view.ViewGroup) cell.getParent();
+            if (parent != null) parent.removeView(cell);
+            slotHost.addView(cell, new LinearLayout.LayoutParams(-1, -1));
+            // Dam bao slotHost la child cua layout
+            if (slotHost.getParent() == null) {
+                layout.removeAllViews();
+                layout.addView(slotHost, new FrameLayout.LayoutParams(-1, -1));
+            }
+        } else {
+            // Fallback: neu chua co slotHost, dua truc tiep vao layout
+            android.view.ViewGroup parent = (android.view.ViewGroup) cell.getParent();
+            if (parent != null) parent.removeView(cell);
+            layout.removeAllViews();
+            layout.addView(cell, new FrameLayout.LayoutParams(-1, -1));
+        }
     }
 
     /** Dong slot dang focused */
@@ -536,6 +568,10 @@ public class MicroActivity extends AppCompatActivity {
 	private SimpleEvent msgSetCurrent = new SimpleEvent() {
 		@Override
 		public void process() {
+			// === NST-style: dua view vao container cua SESSION, khong phai layout chung ===
+			// Tim session hien tai (tu thread game)
+			SlotSession currentSession = SlotRegistry.current();
+
 			if (visible) {
 				Displayable.isFloatingMode = false;
 			}
@@ -552,8 +588,22 @@ public class MicroActivity extends AppCompatActivity {
 				if (displayableView.getParent() != null) {
 					((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
 				}
-				layout.removeAllViews();
-				layout.addView(displayableView);
+				// Neu co session.container (SlotCell) -> dua view vao do
+				// Neu khong -> fallback layout chinh (che do 1 slot cu)
+				if (currentSession != null && currentSession.container != null) {
+					currentSession.container.removeAllViews();
+					currentSession.container.addView(displayableView);
+					currentSession.current = current;
+				} else {
+					layout.removeAllViews();
+					layout.addView(displayableView);
+				}
+			}
+			// Chi cap nhat UI (actionbar, toolbar) khi slot nay dang focused
+			int focusedSlot = SlotRegistry.getFocusedSlot();
+			if (currentSession != null && currentSession.slot != focusedSlot) {
+				// Slot ngam: khong can update toolbar
+				return;
 			}
 			invalidateOptionsMenu();
 			ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
