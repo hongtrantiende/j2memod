@@ -131,7 +131,9 @@ public class Config {
 		intent.putExtra("tab_slot_index", slotIndex);
 		// FLAG_MULTIPLE_TASK: tao task Android moi -> MicroActivity moi hoan toan
 		intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
-		context.startActivity(intent);
+		// Tat animation khi mo tab moi
+		android.app.ActivityOptions opts = android.app.ActivityOptions.makeCustomAnimation(context, 0, 0);
+		context.startActivity(intent, opts.toBundle());
 	}
 
 

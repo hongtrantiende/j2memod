@@ -284,9 +284,22 @@ public class MicroActivity extends AppCompatActivity {
 		intent.setAction("ACTION_HIDE_WINDOW");
 		startService(intent);
 		visible = true;
-		MidletThread.resumeApp();
-		if (current != null) {
-			setCurrent(current);
+		// Dam bao data dir dung voi slot nay
+		Config.setSlotIndex(tabSlotIndex);
+		if (MidletThread.isActive() && MidletThread.getCurrentSlot() != tabSlotIndex) {
+			// Game dang chay cua tab khac -> stop va load lai game cua tab nay
+			MidletThread.stopApp();
+			current = null;
+			try {
+				loadMIDlet();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		} else {
+			MidletThread.resumeApp();
+			if (current != null) {
+				setCurrent(current);
+			}
 		}
 		refreshTabBar();
 	}
@@ -386,6 +399,7 @@ public class MicroActivity extends AppCompatActivity {
 			throw new Exception("No MIDlets found");
 		} else if (size == 1) {
 			MidletThread.create(microLoader, midletsClassArray[0]);
+			MidletThread.setCurrentSlot(tabSlotIndex); // ghi nho slot dang chay
 		} else {
 			showMidletDialog(midletsNameArray, midletsClassArray);
 		}

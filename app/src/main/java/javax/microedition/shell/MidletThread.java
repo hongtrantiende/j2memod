@@ -65,8 +65,19 @@ public class MidletThread extends HandlerThread implements Handler.Callback {
 		handler.post(r);
 	}
 
+	private static int currentSlot = 0;
+
 	public static void create(MicroLoader microLoader, String mainClass) {
 		instance = new MidletThread(microLoader, mainClass);
+	}
+
+	/** Ghi nho slot dang chay de MicroActivity.onResume co the kiem tra */
+	public static void setCurrentSlot(int slot) {
+		currentSlot = slot;
+	}
+
+	public static int getCurrentSlot() {
+		return currentSlot;
 	}
 
 	public static void pauseApp() {
@@ -77,6 +88,14 @@ public class MidletThread extends HandlerThread implements Handler.Callback {
 	public static void resumeApp() {
 		if (instance != null)
 			instance.handler.obtainMessage(START).sendToTarget();
+	}
+
+	/** Dung game hoan toan (de tab khac co the khoi dong game moi) */
+	public static void stopApp() {
+		if (instance != null) {
+			instance.handler.obtainMessage(DESTROY).sendToTarget();
+			instance = null;
+		}
 	}
 
 	public static boolean isActive() {
