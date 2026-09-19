@@ -177,6 +177,22 @@ public class MicroActivity extends AppCompatActivity {
 			Log.e("MicroActivity", "Failed to start ForegroundService", t);
 		}
 
+		// === DANG KY TAB TRUOC MOI RETURN DE CHIP LUON HIEN ===
+		tabSlotIndex = getIntent().getIntExtra("tab_slot_index", 0);
+		TabManager.get().addTab(getTaskId(), tabSlotIndex, "Tab " + (tabSlotIndex + 1));
+		slotTabBar = findViewById(R.id.slot_tab_bar);
+		if (slotTabBar != null) {
+			slotTabBar.setListener(new SlotTabBar.Listener() {
+				@Override public void onTabSelected(int index) { switchToTab(index); }
+				@Override public void onAddOne() { openNewTab(1); }
+				@Override public void onAddMany() { showAddTabsDialog(); }
+				@Override public void onCloseCurrent() { finish(); }
+			});
+			TabManager.get().addListener(changedTabs -> runOnUiThread(() -> refreshTabBar()));
+			refreshTabBar();
+		}
+		// =====================================================
+
 		if (MidletThread.isActive()) {
 			Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
 			if (currentDisplayable != null) {
@@ -190,24 +206,6 @@ public class MicroActivity extends AppCompatActivity {
 		} catch (Exception e) {
 			e.printStackTrace();
 			showErrorDialog(e.toString());
-		}
-
-		// Dang ky tab voi TabManager
-		tabSlotIndex = getIntent().getIntExtra("tab_slot_index", 0);
-		String tabLabel = "Tab " + (tabSlotIndex + 1);
-		TabManager.get().addTab(getTaskId(), tabSlotIndex, tabLabel);
-
-		// Ket noi SlotTabBar (khai bao trong activity_micro.xml)
-		slotTabBar = findViewById(R.id.slot_tab_bar);
-		if (slotTabBar != null) {
-			slotTabBar.setListener(new SlotTabBar.Listener() {
-				@Override public void onTabSelected(int index) { switchToTab(index); }
-				@Override public void onAddOne() { openNewTab(1); }
-				@Override public void onAddMany() { showAddTabsDialog(); }
-				@Override public void onCloseCurrent() { finish(); }
-			});
-			TabManager.get().addListener(changedTabs -> runOnUiThread(() -> refreshTabBar()));
-			refreshTabBar();
 		}
 	}
 
@@ -230,14 +228,23 @@ public class MicroActivity extends AppCompatActivity {
 		slotTabBar.refresh(labels, focused);
 	}
 
-	/** Chuyen sang tab khac theo vi tri trong tab bar */
+	/** Chuyen sang tab khac - dung Intent de tranh crash REORDER_TASKS */
 	private void switchToTab(int index) {
 		java.util.List<namod.j2me.tabs.TabManager.GameTab> tabs = TabManager.get().getTabs();
 		if (index < 0 || index >= tabs.size()) return;
 		namod.j2me.tabs.TabManager.GameTab tab = tabs.get(index);
 		if (tab.taskId == getTaskId()) return;
-		android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
-		if (am != null) am.moveTaskToFront(tab.taskId, 0);
+		try {
+			// Thu moveTaskToFront truoc (co permission)
+			android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+			if (am != null) am.moveTaskToFront(tab.taskId, android.app.ActivityManager.MOVE_TASK_WITH_HOME);
+		} catch (Exception e) {
+			// Fallback: start activity de bring sang truoc
+			Intent switchIntent = new Intent(this, MicroActivity.class);
+			switchIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+			switchIntent.putExtra("tab_slot_index", tab.slotIndex);
+			startActivity(switchIntent);
+		}
 	}
 
 	/** Mo them N tab game moi */
