@@ -202,40 +202,52 @@ public class MicroLoader {
 
 	/**
 	 * Inject credentials vào game sau khi login screen sẫn sàng (~4s sau khi boot).
-	 * Mié phỏng lại đúng những gì AutoLogin.doLogin() làm:
-	 *   SelectServerScr.uname = username
-	 *   SelectServerScr.pass  = password
-	 *   LoginScr.gameAB()      // submit login
+	 * Flow đúng (từ dexdump LoginScr.gameAG):
+	 *   loginScr.tfUser.gameAA(username)   → TField.setText(username)
+	 *   loginScr.tfPass.gameAA(password)   → TField.setText(password)
+	 *   loginScr.gameAG()                  → đọc tfUser/tfPass → submit login
 	 */
 	private void scheduleGameLogin(ClassLoader loader, String username, String password) {
 		new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() ->
 			new Thread(() -> {
-				for (int attempt = 0; attempt < 6; attempt++) {
+				for (int attempt = 0; attempt < 8; attempt++) {
 					try {
 						if (attempt > 0) Thread.sleep(3000);
 
-						// Set SelectServerScr.uname & .pass
-						Class<?> sss = loader.loadClass("SelectServerScr");
-						java.lang.reflect.Field fUser = sss.getField("uname");
-						java.lang.reflect.Field fPass = sss.getField("pass");
-						fUser.set(null, username);
-						fPass.set(null, password);
-						android.util.Log.i("MicroLoader", "[AutoLogin] Injected uname/pass: " + username);
-
-						// Kiểm tra loginScr != null rồi gọi gameAB()
+						// Lấy GameCanvas.loginScr (static field)
 						Class<?> gc = loader.loadClass("GameCanvas");
-						java.lang.reflect.Field fLoginScr = gc.getField("loginScr");
+						java.lang.reflect.Field fLoginScr = gc.getDeclaredField("loginScr");
+						fLoginScr.setAccessible(true);
 						Object loginScr = fLoginScr.get(null);
 						if (loginScr == null) {
 							android.util.Log.w("MicroLoader", "[AutoLogin] loginScr null, retry " + attempt);
 							continue;
 						}
 
-						// Gọi LoginScr.gameAB() → submit login
-						java.lang.reflect.Method gameAB = loginScr.getClass().getMethod("gameAB");
-						gameAB.invoke(loginScr);
-						android.util.Log.i("MicroLoader", "[AutoLogin] LoginScr.gameAB() called! Login submitted.");
-						System.clearProperty("ninja.auto_login"); // clear sau khi dùng
+						// Lấy tfUser và tfPass (instance fields, private)
+						java.lang.reflect.Field fTfUser = loginScr.getClass().getDeclaredField("tfUser");
+						java.lang.reflect.Field fTfPass = loginScr.getClass().getDeclaredField("tfPass");
+						fTfUser.setAccessible(true);
+						fTfPass.setAccessible(true);
+						Object tfUser = fTfUser.get(loginScr);
+						Object tfPass = fTfPass.get(loginScr);
+
+						if (tfUser == null || tfPass == null) {
+							android.util.Log.w("MicroLoader", "[AutoLogin] tfUser/tfPass null, retry " + attempt);
+							continue;
+						}
+
+						// TField.gameAA(String) = setText()
+						java.lang.reflect.Method setText = tfUser.getClass().getMethod("gameAA", String.class);
+						setText.invoke(tfUser, username);
+						setText.invoke(tfPass, password);
+						android.util.Log.i("MicroLoader", "[AutoLogin] Set tfUser=" + username + " tfPass=***");
+
+						// LoginScr.gameAG() = submit login (đọc từ tfUser/tfPass)
+						java.lang.reflect.Method gameAG = loginScr.getClass().getDeclaredMethod("gameAG");
+						gameAG.setAccessible(true);
+						gameAG.invoke(loginScr);
+						android.util.Log.i("MicroLoader", "[AutoLogin] LoginScr.gameAG() called! Login submitted ✓");
 						break; // thành công
 
 					} catch (Exception e) {
@@ -243,8 +255,9 @@ public class MicroLoader {
 					}
 				}
 			}).start(),
-		4000L); // chờ 4s cho game boot xong
+		4000L); // chờ 4s cho login screen xuất hiện
 	}
+
 
 	private void setProperties() {
 		final Locale defaultLocale = Locale.getDefault();
