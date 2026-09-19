@@ -2,6 +2,7 @@ package namod.j2me.ninja;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -13,8 +14,7 @@ import java.util.concurrent.Executors;
 
 import namod.j2me.bundled.BundledAppInstaller;
 import namod.j2me.config.Config;
-import namod.j2me.config.ProfileModel;
-import namod.j2me.config.ProfilesManager;
+import namod.j2me.config.ConfigActivity;
 import namod.j2me.config.ProfileModel;
 import namod.j2me.config.ProfilesManager;
 import javax.microedition.shell.MicroActivity;
@@ -150,14 +150,22 @@ public class AutoLaunchManager {
         Log.i(TAG, "Injected auto_login: " + username);
     }
 
-    /** Khởi động MicroActivity với NinjaNamod.jar. */
+    /** Khởi động MicroActivity với NinjaNamod — chạy trong converted/NinjaNamod/. */
     private void startGame(String jarPath) {
         mainHandler.post(() -> {
             try {
-                Intent intent = new Intent(ctx, MicroActivity.class);
+                // "NinjaNamod" = tên thư mục trong J2ME-Loader/converted/
+                // MicroLoader constructor: path = Config.getAppDir() + "NinjaNamod"
+                final String convertedName = "NinjaNamod";
+                Intent intent = new Intent(
+                        Intent.ACTION_DEFAULT,
+                        Uri.parse(convertedName),
+                        ctx,
+                        MicroActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.putExtra("path", jarPath);
+                intent.putExtra(ConfigActivity.MIDLET_NAME_KEY, convertedName);
                 ctx.startActivity(intent);
+                Log.i(TAG, "MicroActivity launched: " + convertedName);
             } catch (Exception e) {
                 Log.e(TAG, "startActivity error: " + e.getMessage());
                 showToast("Lỗi mở game: " + e.getMessage());
