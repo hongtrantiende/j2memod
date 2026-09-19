@@ -119,6 +119,7 @@ public class MicroActivity extends AppCompatActivity {
 		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 		setTheme(sp.getString("pref_theme", "light"));
 		super.onCreate(savedInstanceState);
+		getWindow().setWindowAnimations(0); // tat hoan toan window animation
 		Displayable.isFloatingMode = false;
 		ContextHolder.setCurrentActivity(this);
 		setContentView(R.layout.activity_micro);
@@ -277,29 +278,17 @@ public class MicroActivity extends AppCompatActivity {
 	@Override
 	public void onResume() {
 		super.onResume();
-		overridePendingTransition(0, 0); // tat animation chuyen tab
-		ContextHolder.setCurrentActivity(this); // game render vao dung layout
+		overridePendingTransition(0, 0);
+		ContextHolder.setCurrentActivity(this);
 		Displayable.isFloatingMode = false;
 		Intent intent = new Intent(this, FloatingBubbleService.class);
 		intent.setAction("ACTION_HIDE_WINDOW");
 		startService(intent);
 		visible = true;
-		// Dam bao data dir dung voi slot nay
-		Config.setSlotIndex(tabSlotIndex);
-		if (MidletThread.isActive() && MidletThread.getCurrentSlot() != tabSlotIndex) {
-			// Game dang chay cua tab khac -> stop va load lai game cua tab nay
-			MidletThread.stopApp();
-			current = null;
-			try {
-				loadMIDlet();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		} else {
-			MidletThread.resumeApp();
-			if (current != null) {
-				setCurrent(current);
-			}
+		Config.setSlotIndex(tabSlotIndex); // dam bao data dir dung voi slot nay
+		MidletThread.resumeApp();
+		if (current != null) {
+			setCurrent(current);
 		}
 		refreshTabBar();
 	}
