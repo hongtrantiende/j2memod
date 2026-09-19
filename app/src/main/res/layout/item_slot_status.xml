@@ -1,0 +1,143 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="#1A2235"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="6dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <!-- Header: Slot index + Badge status + Nút Stop -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/slot_index_label"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_tab_pill"
+                android:gravity="center"
+                android:text="1"
+                android:textColor="#00E5FF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/slot_username"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:text="(trống)"
+                android:textColor="#CFD8DC"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:ellipsize="end"
+                android:maxLines="1" />
+
+            <!-- Status badge -->
+            <TextView
+                android:id="@+id/slot_status_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="22dp"
+                android:background="@drawable/badge_bg_stopped"
+                android:paddingHorizontal="10dp"
+                android:gravity="center"
+                android:text="DỪNG"
+                android:textColor="@android:color/white"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/slot_btn_stop"
+                style="@style/Widget.MaterialComponents.Button.Icon"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="0dp"
+                app:icon="@android:drawable/ic_delete"
+                app:iconSize="16dp"
+                app:iconTint="@android:color/white"
+                app:backgroundTint="#B71C1C"
+                app:cornerRadius="16dp" />
+        </LinearLayout>
+
+        <!-- Server chip + Uptime -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/slot_server_chip"
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:background="@drawable/bg_tag_pill"
+                android:paddingHorizontal="8dp"
+                android:gravity="center"
+                android:text="Bokken"
+                android:textColor="#00E5FF"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/slot_uptime"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="⏱ 00:00"
+                android:textColor="#78909C"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/slot_ram"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="RAM: --"
+                android:textColor="#78909C"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Network stats -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <TextView
+                android:id="@+id/slot_bytes_in"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="↓ 0K"
+                android:textColor="#26C6DA"
+                android:textSize="11sp"
+                android:drawableStart="@null" />
+
+            <TextView
+                android:id="@+id/slot_bytes_out"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="↑ 0K"
+                android:textColor="#EF9A9A"
+                android:textSize="11sp"
+                android:gravity="end" />
+        </LinearLayout>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

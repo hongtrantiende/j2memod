@@ -254,6 +254,19 @@ public class MicroLoader {
 			} else {
 				System.clearProperty("pref_ip_redirect_port");
 			}
+			// ── Namod: inject Auto-Login credentials ──────────────────────────
+			// Được set bởi AutoLaunchManager trước khi startActivity.
+			// Game (Code.java) đọc qua System.getProperty("ninja.auto_login")
+			// hoặc MIDlet.getAppProperty("ninja.auto_login")
+			// Format: "username|password"
+			String ninjaLogin = System.getProperty("ninja.auto_login");
+			if (ninjaLogin != null && !ninjaLogin.isEmpty()) {
+				// Inject vào System.setProperty để game đọc qua System.getProperty
+				// (System.getProperty hoạt động trong J2ME context)
+				System.setProperty("ninja.auto_login", ninjaLogin);
+				Log.i(TAG, "[Namod] ninja.auto_login injected for: "
+						+ (ninjaLogin.contains("|") ? ninjaLogin.split("\\|")[0] : ninjaLogin));
+			}
 			ShaderInfo shader = params.shader;
 			if (shader == null) shader = new ShaderInfo();
 			Canvas.setShaderFilter(shader);

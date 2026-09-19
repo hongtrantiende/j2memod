@@ -44,7 +44,37 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- QLTK Ninja Manager shortcut button -->
+        <LinearLayout
+            android:id="@+id/btn_qltk_ninja"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_tab_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="&#9876;"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tv_qltk_online_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:text="0"
+                android:textColor="#00E5FF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <!-- Move handle area (drag to move window) -->
+
         <LinearLayout
             android:id="@+id/move_handle"
             android:layout_width="0dp"
