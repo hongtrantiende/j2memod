@@ -52,32 +52,33 @@ public class AutoLaunchManager {
         }
         executor.execute(() -> {
             try {
-                String jarPath = prepareJar();
-                if (jarPath == null) throw new Exception("Không tìm thấy NinjaNamod.jar!");
+                // Xac dinh slot rieng cho nick nay
+                String slot = BundledAppInstaller.slotName(account.slotIndex);
+                String jarPath = BundledAppInstaller.ensureSlotInstalled(ctx, slot);
+                if (jarPath == null) throw new Exception("Khong tim thay NinjaNamod.jar!");
 
-                // 1. Kill game cũ nếu đang chạy → để RMS cache được clear
+                // 1. Kill game cu neu dang chay -> de RMS cache duoc clear
                 killGameIfRunning();
-                Thread.sleep(1500); // chờ MicroActivity tắt hẳn
+                Thread.sleep(300); // giam tu 1500ms xuong 300ms
 
-                // 2. Ghi RMS acc/pass → game sẽ đọc khi khởi động mới (pre-fill form)
-                preWriteRmsCredentials(account.username, account.password);
+                // 2. Ghi RMS acc/pass vao SLOT FOLDER rieng cua nick nay
+                preWriteRmsCredentials(account.username, account.password, slot);
 
-                // 3. Ghi SharedPreferences → MicroLoader đọc từ process :midlet
-                //    (System.setProperty không share cross-process!)
+                // 3. Ghi SharedPreferences -> MicroLoader doc tu process :midlet
                 ctx.getSharedPreferences("ninja_autologin", android.content.Context.MODE_PRIVATE)
                         .edit()
                         .putString("user", account.username)
                         .putString("pass", account.password)
                         .apply();
-                Log.i(TAG, "Saved auto_login prefs for: " + account.username);
+                Log.i(TAG, "Saved auto_login prefs for: " + account.username + " slot=" + slot);
 
-                // 4. Mở game
-                startGame(jarPath);
+                // 4. Mo game voi slot name
+                startGame(slot);
 
                 if (onSuccess != null) mainHandler.post(onSuccess);
             } catch (Exception e) {
                 Log.e(TAG, "Launch failed: " + e.getMessage(), e);
-                showToast("Lỗi khởi động: " + e.getMessage());
+                showToast("Loi khoi dong: " + e.getMessage());
                 if (onError != null) mainHandler.post(onError);
             }
         });
@@ -100,23 +101,25 @@ public class AutoLaunchManager {
     }
 
 
-    /** Launch N tài khoản liên tiếp với delay giữa mỗi cái. */
+    /** Launch N tai khoan lien tiep voi delay giua moi cai. */
     public void launchMultiple(java.util.List<AccountModel> accounts, long delayMs) {
         executor.execute(() -> {
             for (int i = 0; i < accounts.size(); i++) {
                 AccountModel acc = accounts.get(i);
                 final int idx = i;
                 mainHandler.post(() ->
-                    showToast("Đang mở tab " + (idx + 1) + "/" + accounts.size()
+                    showToast("Dang mo tab " + (idx + 1) + "/" + accounts.size()
                               + ": " + acc.username));
                 try {
-                    String jarPath = prepareJar();
-                if (jarPath != null) {
+                    String slot = BundledAppInstaller.slotName(acc.slotIndex);
+                    String jarPath = BundledAppInstaller.ensureSlotInstalled(ctx, slot);
+                    if (jarPath != null) {
                         ServerConfig.Server server = ServerConfig.getByName(acc.serverName);
                         prepareProfile(jarPath, server);
-                        preWriteRmsCredentials(acc.username, acc.password);
-                        startGame(jarPath);
-                        scheduleAutoLoginCommand(acc.username, acc.password);
+                        preWriteRmsCredentials(acc.username, acc.password, slot);
+                        ctx.getSharedPreferences("ninja_autologin", android.content.Context.MODE_PRIVATE)
+                                .edit().putString("user", acc.username).putString("pass", acc.password).apply();
+                        startGame(slot);
                         if (i < accounts.size() - 1) {
                             Thread.sleep(delayMs);
                         }
@@ -128,14 +131,13 @@ public class AutoLaunchManager {
         });
     }
 
+
     // ─── Private helpers ────────────────────────────────
 
-    /** Đảm bảo NinjaNamod.jar tồn tại trong emulator dir. */
+    /** Dam bao NinjaNamod.jar ton tai trong emulator dir. */
     private String prepareJar() {
         String path = BundledAppInstaller.ensureInstalled(ctx);
-        if (path == null) {
-            Log.e(TAG, "JAR install failed");
-        }
+        if (path == null) Log.e(TAG, "JAR install failed");
         return path;
     }
 
@@ -176,12 +178,14 @@ public class AutoLaunchManager {
      * Game đọc key "acc" (username) và "pass" (password) khi khởi động.
      * Path: /sdcard/J2ME-Loader/data/NinjaNamod/
      */
-    private void preWriteRmsCredentials(String username, String password) {
+    /**
+     * Ghi RMS credentials vao SLOT FOLDER rieng cua nick.
+     * Moi slot co data doc lap: NinjaNamod/, NinjaNamod2/, NinjaNamod3/...
+     */
+    private void preWriteRmsCredentials(String username, String password, String slotName) {
         try {
-            // RMS path = Config.getDataDir() + "NinjaNamod/"
-            // = /storage/emulated/0/J2ME-Loader/data/NinjaNamod/
             java.io.File rmsDir = new java.io.File(
-                    namod.j2me.config.Config.getDataDir(), "NinjaNamod");
+                    namod.j2me.config.Config.getDataDir(), slotName);
             if (!rmsDir.exists()) rmsDir.mkdirs();
 
             writeRmsRecord(rmsDir, "acc", username.getBytes("UTF-8"));
@@ -287,25 +291,22 @@ public class AutoLaunchManager {
     }
 
 
-    /** Khởi động MicroActivity với NinjaNamod — chạy trong converted/NinjaNamod/. */
-    private void startGame(String jarPath) {
+    /** Khoi dong MicroActivity voi slot name (VD: NinjaNamod, NinjaNamod2...). */
+    private void startGame(String slotName) {
         mainHandler.post(() -> {
             try {
-                // "NinjaNamod" = tên thư mục trong J2ME-Loader/converted/
-                // MicroLoader constructor: path = Config.getAppDir() + "NinjaNamod"
-                final String convertedName = "NinjaNamod";
                 Intent intent = new Intent(
                         Intent.ACTION_DEFAULT,
-                        Uri.parse(convertedName),
+                        Uri.parse(slotName),
                         ctx,
                         MicroActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.putExtra(ConfigActivity.MIDLET_NAME_KEY, convertedName);
+                intent.putExtra(ConfigActivity.MIDLET_NAME_KEY, slotName);
                 ctx.startActivity(intent);
-                Log.i(TAG, "MicroActivity launched: " + convertedName);
+                Log.i(TAG, "MicroActivity launched: " + slotName);
             } catch (Exception e) {
                 Log.e(TAG, "startActivity error: " + e.getMessage());
-                showToast("Lỗi mở game: " + e.getMessage());
+                showToast("Loi mo game: " + e.getMessage());
             }
         });
     }

@@ -212,7 +212,7 @@ public class MicroLoader {
 			new Thread(() -> {
 				for (int attempt = 0; attempt < 8; attempt++) {
 					try {
-						if (attempt > 0) Thread.sleep(3000);
+						if (attempt > 0) Thread.sleep(1500); // giam tu 3s xuong 1.5s
 
 						// Lấy GameCanvas.loginScr (static field)
 						Class<?> gc = loader.loadClass("GameCanvas");
@@ -256,7 +256,7 @@ public class MicroLoader {
 					}
 				}
 			}).start(),
-		4000L); // chờ 4s cho login screen xuất hiện
+		1500L); // giam tu 4s xuong 1.5s - game boot nhanh hon
 	}
 
 	/**
@@ -267,7 +267,7 @@ public class MicroLoader {
 		new Thread(() -> {
 			for (int attempt = 0; attempt < 15; attempt++) {
 				try {
-					Thread.sleep(3000);
+					Thread.sleep(2000); // poll moi 2s
 					Class<?> gc = loader.loadClass("GameCanvas");
 					java.lang.reflect.Field fCur = gc.getDeclaredField("currentScreen");
 					fCur.setAccessible(true);
