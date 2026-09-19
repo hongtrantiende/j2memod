@@ -277,6 +277,8 @@ public class MicroActivity extends AppCompatActivity {
 	@Override
 	public void onResume() {
 		super.onResume();
+		overridePendingTransition(0, 0); // tat animation chuyen tab
+		ContextHolder.setCurrentActivity(this); // game render vao dung layout
 		Displayable.isFloatingMode = false;
 		Intent intent = new Intent(this, FloatingBubbleService.class);
 		intent.setAction("ACTION_HIDE_WINDOW");
@@ -286,6 +288,7 @@ public class MicroActivity extends AppCompatActivity {
 		if (current != null) {
 			setCurrent(current);
 		}
+		refreshTabBar();
 	}
 
 	@Override
@@ -299,6 +302,7 @@ public class MicroActivity extends AppCompatActivity {
 
 	@Override
 	public void onPause() {
+		overridePendingTransition(0, 0); // tat animation chuyen tab
 		visible = false;
 		boolean bgRun = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_background_run", true);
 		if (!bgRun && !Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
