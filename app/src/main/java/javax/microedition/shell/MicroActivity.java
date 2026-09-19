@@ -302,14 +302,18 @@ public class MicroActivity extends AppCompatActivity {
 		try {
 			unregisterReceiver(closeReceiver);
 		} catch (Exception ignored) {}
-		if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+
+		// Huy dang ky tab nay truoc
+		TabManager.get().removeTab(getTaskId());
+
+		// Chi dung ForegroundService & kill process khi la tab CUOI CUNG
+		boolean lastTab = TabManager.get().getTabCount() == 0;
+		if (lastTab && !Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
 			stopService(new Intent(this, ForegroundService.class));
 		}
 		ConsoleOutput.clear();
 		super.onDestroy();
-		// Huy dang ky tab
-		TabManager.get().removeTab(getTaskId());
-		if (isFinishing()) {
+		if (isFinishing() && lastTab) {
 			if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
 				Process.killProcess(Process.myPid());
 			}
