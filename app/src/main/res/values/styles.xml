@@ -148,20 +148,7 @@
     <style name="TextViewVendor" parent="Widget.AppCompat.TextView" >
     </style>
 
-    <!-- ═══ Theme cho NinjaManagerActivity ═══════════════════════════ -->
-    <!-- Dùng MaterialComponents để hỗ trợ TabLayout, MaterialToolbar, CardView -->
-    <style name="AppTheme.Ninja" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryDark">@color/primary_dark</item>
-        <item name="colorAccent">@color/accent</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="android:colorBackground">@color/background</item>
-        <item name="android:windowBackground">?android:colorBackground</item>
-        <item name="textColorPrimary">@color/text_primary</item>
-        <item name="textColorSecondary">@color/text_secondary</item>
-        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
-    </style>
-    <!-- ════════════════════════════════════════════════════════════════ -->
+
 
 </resources>
 

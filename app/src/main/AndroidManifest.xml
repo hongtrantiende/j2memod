@@ -92,13 +92,7 @@
             android:name=".config.ConfigActivity"
             android:exported="true"
             android:windowSoftInputMode="stateHidden" />
-        <!-- QLTK Ninja Manager -->
-        <activity
-            android:name=".ninja.NinjaManagerActivity"
-            android:exported="false"
-            android:theme="@style/AppTheme.Ninja"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
-            android:windowSoftInputMode="adjustResize" />
+
 
         <activity
             android:name="javax.microedition.shell.MicroActivity"

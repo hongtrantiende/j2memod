@@ -38,7 +38,6 @@ import android.widget.Toast;
 
 import namod.j2me.applist.AppItem;
 import namod.j2me.network.TabStatusManager;
-import namod.j2me.ninja.NinjaManagerActivity;
 import namod.j2me.util.AppUtils;
 
 import androidx.core.app.NotificationCompat;
@@ -439,17 +438,6 @@ public class FloatingBubbleService extends Service {
                 return true;
             });
         }
-
-        // ── QLTK Ninja button ───────────────────────────────────
-        View qltkBtn = this.windowView.findViewById(R.id.btn_qltk_ninja);
-        if (qltkBtn != null) {
-            qltkBtn.setOnClickListener(v -> {
-                Intent ninjaIntent = new Intent(this, NinjaManagerActivity.class);
-                ninjaIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(ninjaIntent);
-            });
-        }
-        // ────────────────────────────────────────────────
 
         moveHandle.setOnTouchListener(new View.OnTouchListener() {
             private float initialTouchX;

@@ -74,7 +74,6 @@ import io.reactivex.flowables.ConnectableFlowable;
 import io.reactivex.schedulers.Schedulers;
 import namod.j2me.MainActivity;
 import namod.j2me.R;
-import namod.j2me.ninja.NinjaManagerActivity;
 import namod.j2me.appsdb.AppRepository;
 import namod.j2me.config.Config;
 import namod.j2me.config.ConfigActivity;
@@ -143,13 +142,6 @@ public class AppsListFragment extends Fragment {
 		updateViewMode();
 		initDb();
 
-		// ── QLTK Ninja Banner click ───────────────────────────────────────
-		View cardQltk = view.findViewById(R.id.card_qltk_ninja);
-		if (cardQltk != null) {
-			cardQltk.setOnClickListener(v ->
-				startActivity(new Intent(getActivity(), NinjaManagerActivity.class)));
-		}
-		// ─────────────────────────────────────────────────────────────────
 
 		FloatingActionButton fab = view.findViewById(R.id.fab);
 		if (fab != null) {
