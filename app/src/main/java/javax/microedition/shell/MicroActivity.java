@@ -238,22 +238,10 @@ public class MicroActivity extends AppCompatActivity {
 		// Set currentSession cho UI thread
 		currentSession = session;
 
-		// Init MicroLoader
-		MicroLoader loader;
-		if (slotIndex == 0) {
-			// Dung microLoader da init tu onCreate
-			loader = microLoader;
-		} else {
-			Config.setSlotIndex(slotIndex);
-			loader = new MicroLoader(this, path);
-			if (!loader.init()) {
-				Toast.makeText(this, "Khong the khoi tao slot " + (slotIndex + 1), Toast.LENGTH_SHORT).show();
-				SlotRegistry.remove(session);
-				return;
-			}
-			loader.applyConfiguration();
-		}
-		session.microLoader = loader;
+		// Tab 2+ dung lai microLoader tu tab 1 (khong goi init/applyConfiguration lai
+		// vi chung ghi de static state cua Display, EventQueue, MIDlet.initProps...)
+		session.microLoader = microLoader;
+		MicroLoader loader = microLoader;
 
 		// Load MIDlet
 		try {
