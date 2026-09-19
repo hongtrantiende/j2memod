@@ -76,10 +76,11 @@ import namod.j2me.FloatingBubbleService;
 import namod.j2me.R;
 import namod.j2me.config.Config;
 import namod.j2me.config.ConfigActivity;
-import namod.j2me.tabs.TabManager;
 import namod.j2me.util.ConsoleOutput;
 import namod.j2me.util.LogConsoleDialogFragment;
 import namod.j2me.util.LogUtils;
+
+import java.util.ArrayList;
 
 public class MicroActivity extends AppCompatActivity {
 	private static final int ORIENTATION_DEFAULT = 0;
@@ -98,6 +99,47 @@ public class MicroActivity extends AppCompatActivity {
 	private MicroLoader microLoader;
 	private String appName;
 	private int tabSlotIndex = 0; // slot du lieu rieng biet
+
+    // === MULTI-SLOT (NST-style) ===
+    private LinearLayout slotHost;
+    private SlotTabBar slotTabBar;
+    private final ArrayList<SlotCell> cells = new ArrayList<>();
+    private boolean addingSlots = false;
+    private int pendingSlots = 0;
+    private String addingPath;
+    private String addingName;
+    private static final long ADD_SLOT_INTERVAL_MS = 120;
+
+    private final SlotTabBar.Listener tabBarListener = new SlotTabBar.Listener() {
+        @Override public void onTabSelected(int index) {
+            if (index >= 0 && index < cells.size())
+                selectSlot(cells.get(index).slot);
+        }
+        @Override public void onAddOne() { addSlots(1); }
+        @Override public void onAddMany() { showAddSlotsDialog(); }
+        @Override public void onCloseCurrent() { closeFocusedSlot(); }
+    };
+
+    private final Runnable addOneSlot = new Runnable() {
+        @Override
+        public void run() {
+            if (pendingSlots <= 0 || isFinishing() || cells.size() >= 100) {
+                pendingSlots = 0; addingSlots = false; return;
+            }
+            pendingSlots--;
+            int nextSlot = nextFreeSlot();
+            if (nextSlot < 0) { pendingSlots = 0; addingSlots = false; return; }
+            newCell(nextSlot);
+            SlotRegistry.setMultiSlot(true);
+            SlotRegistry.setFocusedSlot(nextSlot);
+            launchSlot(nextSlot, addingPath, addingName);
+            if (pendingSlots > 0) {
+                if (slotHost != null) slotHost.postDelayed(this, ADD_SLOT_INTERVAL_MS);
+            } else {
+                addingSlots = false;
+            }
+        }
+    };
 
 	private final BroadcastReceiver closeReceiver = new BroadcastReceiver() {
 		@Override
@@ -188,11 +230,177 @@ public class MicroActivity extends AppCompatActivity {
 			showErrorDialog(e.toString());
 		}
 
-		// Dang ky tab voi TabManager
-		tabSlotIndex = getIntent().getIntExtra("tab_slot_index", 0);
-		String tabLabel = "Tab " + (tabSlotIndex + 1);
-		TabManager.get().addTab(getTaskId(), tabSlotIndex, tabLabel);
+        // Dang ky slot-0 voi SlotRegistry
+        SlotSession slot0;
+        if (SlotRegistry.get(0) == null) {
+            slot0 = SlotRegistry.create(0);
+        } else {
+            slot0 = SlotRegistry.get(0);
+        }
+        slot0.appName = appName;
+        slot0.appPath = intent.getDataString();
+        SlotRegistry.bind(slot0);
+        SlotRegistry.setFocusedSlot(0);
+
+        // Tao slotHost + SlotTabBar phia duoi
+        FrameLayout rootFrame = findViewById(R.id.displayable_container);
+        if (rootFrame != null && rootFrame.getParent() instanceof LinearLayout) {
+            LinearLayout root = (LinearLayout) rootFrame.getParent();
+            slotHost = new LinearLayout(this);
+            slotHost.setOrientation(LinearLayout.VERTICAL);
+
+            // Them slotHost + tabBar vao root layout (phia tren displayable_container)
+            // slotHost hien thi slot dang focus trong layout cha
+            slotTabBar = new SlotTabBar(this, tabBarListener);
+            SlotRegistry.addListener((sessions, focused) -> runOnUiThread(() -> refreshTabBar()));
+
+            // Them tab bar vao cuoi man hinh
+            LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, SlotTabBar.heightPx(this));
+            root.addView(slotTabBar, tabParams);
+        }
+
+        // Tao cell-0 cho slot dau tien
+        SlotCell cell0 = newCell(0);
+        slot0.container = cell0;
+        if (cell0 != null) cell0.clearPlaceholder();
+        refreshTabBar();
 	}
+
+    /** Tao SlotCell moi va them vao cells list theo thu tu slot */
+    private SlotCell newCell(int slotIndex) {
+        SlotCell cell = new SlotCell(this, slotIndex,
+            tapSlot -> launchSlot(tapSlot, addingPath != null ? addingPath : "", addingName != null ? addingName : ""));
+        int ins = cells.size();
+        while (ins > 0 && cells.get(ins - 1).slot > slotIndex) ins--;
+        cells.add(ins, cell);
+        return cell;
+    }
+
+    /** Lay SlotCell theo slot index */
+    private SlotCell cellOf(int slotIndex) {
+        for (SlotCell c : cells) { if (c.slot == slotIndex) return c; }
+        return null;
+    }
+
+    /** Tim slot index chua duoc su dung */
+    private int nextFreeSlot() {
+        for (int i = 0; i < 100; i++) {
+            if (SlotRegistry.get(i) == null) return i;
+        }
+        return -1;
+    }
+
+    /** Them N slot moi, sao chep JAR cua slot dang focused */
+    public void addSlots(int count) {
+        if (addingSlots) { Toast.makeText(this, "Dang mo tab...", Toast.LENGTH_SHORT).show(); return; }
+        int maxNew = 100 - cells.size();
+        if (maxNew <= 0) { Toast.makeText(this, "Da dat gioi han 100 tab", Toast.LENGTH_SHORT).show(); return; }
+        SlotSession focused = SlotRegistry.focused();
+        if (focused == null || focused.appPath == null) {
+            Toast.makeText(this, "Khong xac dinh duoc JAR", Toast.LENGTH_SHORT).show(); return;
+        }
+        addingPath = focused.appPath;
+        addingName = focused.appName;
+        addingSlots = true;
+        pendingSlots = Math.min(count, maxNew);
+        if (slotHost != null) slotHost.post(addOneSlot);
+        else runOnUiThread(addOneSlot);
+    }
+
+    /** Khoi dong game vao slot chi dinh */
+    public void launchSlot(int slotIndex, String path, String name) {
+        SlotSession session = SlotRegistry.get(slotIndex);
+        if (session == null) {
+            session = SlotRegistry.create(slotIndex);
+        }
+        session.appPath = path;
+        session.appName = name;
+        SlotRegistry.bind(session);
+        SlotCell cell = cellOf(slotIndex);
+        if (cell != null) {
+            cell.clearPlaceholder();
+            session.container = cell;
+        }
+        // Khoi tao MicroLoader va chay game
+        MicroLoader loader = new MicroLoader(this, path);
+        if (!loader.init()) {
+            Toast.makeText(this, "Loi khoi tao JAR slot " + (slotIndex + 1), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        loader.applyConfiguration();
+        session.microLoader = loader;
+        try {
+            java.util.LinkedHashMap<String, String> midlets = loader.loadMIDletList();
+            String[] classes = midlets.keySet().toArray(new String[0]);
+            if (classes.length == 0) return;
+            MidletThread.create(loader, classes[0]);
+        } catch (Exception e) {
+            Log.e("MicroActivity", "launchSlot error", e);
+        }
+        selectSlot(slotIndex);
+    }
+
+    /** Chuyen sang slot khac - chi doi view hien thi */
+    public void selectSlot(int slotIndex) {
+        SlotCell cell = cellOf(slotIndex);
+        if (cell == null || SlotRegistry.getFocusedSlot() == slotIndex) return;
+        SlotRegistry.setFocusedSlot(slotIndex);
+        SlotSession sess = SlotRegistry.get(slotIndex);
+        if (sess != null) SlotRegistry.bind(sess);
+        // Cap nhat Displayable trong layout chinh
+        if (sess != null && sess.current != null) {
+            setCurrent(sess.current);
+        }
+        refreshTabBar();
+    }
+
+    /** Dong slot dang focused */
+    public void closeFocusedSlot() {
+        if (cells.size() <= 1) {
+            finish(); return;
+        }
+        int focused = SlotRegistry.getFocusedSlot();
+        SlotSession sess = SlotRegistry.get(focused);
+        if (sess != null) MidletThread.destroySlot(sess);
+        SlotCell cell = cellOf(focused);
+        if (cell != null) cells.remove(cell);
+        // Chuyen sang slot ke truoc
+        int newFocus = cells.isEmpty() ? -1 : cells.get(Math.max(0, cells.size() - 1)).slot;
+        if (newFocus >= 0) selectSlot(newFocus);
+        else finish();
+    }
+
+    /** Hien thi dialog nhap so tab muon mo */
+    private void showAddSlotsDialog() {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setText("1");
+        input.setSelectAllOnFocus(true);
+        new AlertDialog.Builder(this)
+            .setTitle("Mo nhieu man")
+            .setMessage("Nhap so man muon mo them (toi da " + (100 - cells.size()) + ")")
+            .setView(input)
+            .setNegativeButton("CANCEL", null)
+            .setPositiveButton("MO", (d, w) -> {
+                try { addSlots(Integer.parseInt(input.getText().toString().trim())); }
+                catch (Exception ignored) {}
+            }).show();
+    }
+
+    /** Cap nhat SlotTabBar chip [1][2][3] */
+    private void refreshTabBar() {
+        if (slotTabBar == null) return;
+        int[] labels = new int[cells.size()];
+        int focused = 0;
+        int focusedSlot = SlotRegistry.getFocusedSlot();
+        for (int i = 0; i < cells.size(); i++) {
+            labels[i] = cells.get(i).slot + 1;
+            if (cells.get(i).slot == focusedSlot) focused = i;
+        }
+        int finalFocused = focused;
+        runOnUiThread(() -> slotTabBar.refresh(labels, finalFocused));
+    }
 
 	@Override
 	public void onResume() {
@@ -227,24 +435,20 @@ public class MicroActivity extends AppCompatActivity {
 		super.onPause();
 	}
 
-	@Override
-	protected void onDestroy() {
-		try {
-			unregisterReceiver(closeReceiver);
-		} catch (Exception ignored) {}
-		if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
-			stopService(new Intent(this, ForegroundService.class));
-		}
-		ConsoleOutput.clear();
-		super.onDestroy();
-		// Huy dang ky tab
-		TabManager.get().removeTab(getTaskId());
-		if (isFinishing()) {
-			if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
-				Process.killProcess(Process.myPid());
-			}
-		}
-	}
+    @Override
+    protected void onDestroy() {
+        try { unregisterReceiver(closeReceiver); } catch (Exception ignored) {}
+        if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+            stopService(new Intent(this, ForegroundService.class));
+        }
+        ConsoleOutput.clear();
+        super.onDestroy();
+        if (isFinishing()) {
+            if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+                Process.killProcess(Process.myPid());
+            }
+        }
+    }
 
 	@Override
 	public void onWindowFocusChanged(boolean hasFocus) {

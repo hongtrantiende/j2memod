@@ -38,16 +38,21 @@ public class MidletThread extends HandlerThread implements Handler.Callback {
 	private static final int PAUSE = 2;
 	private static final int START = 1;
 	private static final int DESTROY = 3;
-	private static MidletThread instance;
+
+	/** Session slot ma thread nay phuc vu */
+	private final SlotSession session;
 	private MIDlet midlet;
-	private final Handler handler;
+	final Handler handler;
 	private boolean started;
 
-	private MidletThread(MicroLoader microLoader, String mainClass) {
-		super("MidletMain");
+	private MidletThread(SlotSession session, MicroLoader microLoader, String mainClass) {
+		super("MidletMain-" + session.slot);
+		this.session = session;
 		start();
 		handler = new Handler(getLooper(), this);
 		Runnable r = () -> {
+			// Bind session cho thread game nay
+			SlotRegistry.bind(session);
 			try {
 				midlet = microLoader.loadMIDlet(mainClass);
 				started = true;
@@ -59,57 +64,80 @@ public class MidletThread extends HandlerThread implements Handler.Callback {
 				while ((e = cause.getCause()) != null) {
 					cause = e;
 				}
-				ContextHolder.getActivity().showErrorDialog(cause.toString());
+				MicroActivity act = ContextHolder.getActivity();
+				if (act != null) act.showErrorDialog(cause.toString());
 			}
 		};
 		handler.post(r);
 	}
 
-	public static void create(MicroLoader microLoader, String mainClass) {
-		instance = new MidletThread(microLoader, mainClass);
+	/**
+	 * Tao MidletThread cho slot hien tai (lay tu SlotRegistry.current()).
+	 * Backward-compat API.
+	 */
+	public static MidletThread create(MicroLoader microLoader, String mainClass) {
+		SlotSession sess = SlotRegistry.current();
+		if (sess == null) {
+			// Fallback: tao slot 0 neu chua co
+			sess = SlotRegistry.create(0);
+			SlotRegistry.bind(sess);
+		}
+		MidletThread t = new MidletThread(sess, microLoader, mainClass);
+		sess.midletThread = t;
+		return t;
 	}
 
+	/** Pause slot hien tai (focused) */
 	public static void pauseApp() {
-		if (instance != null)
-			instance.handler.obtainMessage(PAUSE).sendToTarget();
+		SlotSession sess = SlotRegistry.focused();
+		if (sess != null && sess.midletThread != null)
+			sess.midletThread.handler.obtainMessage(PAUSE).sendToTarget();
 	}
 
+	/** Resume slot hien tai */
 	public static void resumeApp() {
-		if (instance != null)
-			instance.handler.obtainMessage(START).sendToTarget();
+		SlotSession sess = SlotRegistry.focused();
+		if (sess != null && sess.midletThread != null)
+			sess.midletThread.handler.obtainMessage(START).sendToTarget();
 	}
 
 	public static boolean isActive() {
-		return instance != null;
+		return SlotRegistry.count() > 0;
 	}
 
+	/** Lay Displayable cua slot hien tai (focused) - backward compat */
 	public static Displayable getCurrentDisplayable() {
-		if (instance == null || instance.midlet == null) {
-			return null;
-		}
-		return Display.getDisplay(instance.midlet).getCurrent();
+		SlotSession sess = SlotRegistry.focused();
+		if (sess != null) return sess.current;
+		return null;
 	}
 
+	/** Destroy tat ca slot (thoat game) */
 	public static void destroyApp() {
 		new Thread(() -> {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+			try { Thread.sleep(1000); } catch (InterruptedException e) { e.printStackTrace(); }
 			Process.killProcess(Process.myPid());
 		}, "ForceDestroyTimer").start();
-		if (ContextHolder.getActivity() != null) {
-			Displayable current = ContextHolder.getActivity().getCurrent();
-			if (current instanceof Canvas) {
-				Canvas canvas = (Canvas) current;
-				int keyCode = Canvas.convertKeyCode(Canvas.KEY_END);
-				Display.postEvent(CanvasEvent.getInstance(canvas, CanvasEvent.KEY_PRESSED, keyCode));
-				Display.postEvent(CanvasEvent.getInstance(canvas, CanvasEvent.KEY_RELEASED, keyCode));
+		// Gui phim End cho canvas focused
+		SlotSession focused = SlotRegistry.focused();
+		if (focused != null && focused.current instanceof Canvas) {
+			Canvas canvas = (Canvas) focused.current;
+			int keyCode = Canvas.convertKeyCode(Canvas.KEY_END);
+			Display.postEvent(CanvasEvent.getInstance(canvas, CanvasEvent.KEY_PRESSED, keyCode));
+			Display.postEvent(CanvasEvent.getInstance(canvas, CanvasEvent.KEY_RELEASED, keyCode));
+		}
+		// Destroy tat ca sessions
+		for (SlotSession sess : SlotRegistry.all()) {
+			if (sess.midletThread != null) {
+				sess.midletThread.handler.obtainMessage(DESTROY, 1).sendToTarget();
 			}
 		}
-		if (instance != null) {
-			instance.handler.obtainMessage(DESTROY, 1).sendToTarget();
+	}
+
+	/** Destroy 1 slot cu the */
+	public static void destroySlot(SlotSession session) {
+		if (session != null && session.midletThread != null) {
+			session.midletThread.handler.obtainMessage(DESTROY, 1).sendToTarget();
 		}
 	}
 
@@ -126,7 +154,8 @@ public class MidletThread extends HandlerThread implements Handler.Callback {
 					Log.w(TAG, "startApp:", e);
 				} catch (Throwable t) {
 					Log.e(TAG, "startApp:", t);
-					ContextHolder.getActivity().showErrorDialog(t.getMessage());
+					MicroActivity act = ContextHolder.getActivity();
+					if (act != null) act.showErrorDialog(t.getMessage());
 				}
 				break;
 			case PAUSE:
@@ -136,20 +165,19 @@ public class MidletThread extends HandlerThread implements Handler.Callback {
 					midlet.pauseApp();
 				} catch (Throwable t) {
 					Log.e(TAG, "pauseApp: ", t);
-					ContextHolder.getActivity().showErrorDialog(t.getMessage());
 				}
 				break;
 			case DESTROY:
 				try {
 					midlet.destroyApp(true);
 					started = false;
+					SlotRegistry.remove(session);
 					ContextHolder.notifyDestroyed();
 				} catch (MIDletStateChangeException e) {
 					Log.w(TAG, "destroyApp:", e);
 					return true;
 				} catch (Throwable t) {
 					Log.e(TAG, "destroyApp:", t);
-					ContextHolder.getActivity().showErrorDialog(t.getMessage());
 				}
 				break;
 		}
