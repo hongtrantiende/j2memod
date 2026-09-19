@@ -64,6 +64,8 @@ import javax.microedition.lcdui.pointer.FixedKeyboard;
 import javax.microedition.shell.ForegroundService;
 import javax.microedition.shell.MicroActivity;
 import javax.microedition.shell.MidletThread;
+import javax.microedition.shell.SlotRegistry;
+import javax.microedition.shell.SlotSession;
 import javax.microedition.util.ContextHolder;
 
 import androidx.annotation.NonNull;
@@ -799,7 +801,21 @@ public abstract class Canvas extends Displayable {
 	private void limitFps() {
 		int currentLimit = fpsLimit;
 		boolean autoSleeping = isAutoSleeping();
-		if (!isShown()) {
+
+		// Kiem tra xem day la tab nen (multi-slot) hay la app bi an hoan toan
+		boolean isMultiSlot = SlotRegistry.count() > 1;
+		int mySlot = -1;
+		SlotSession session = SlotRegistry.current();
+		if (session != null) mySlot = session.slot;
+		boolean isBackgroundSlot = isMultiSlot && mySlot >= 0
+				&& mySlot != SlotRegistry.getFocusedSlot();
+
+		if (isBackgroundSlot) {
+			// Tab nen trong multi-slot: chay 15 FPS (du de game loop khong do)
+			// KHONG xoa cache (chi can throttle nhe)
+			currentLimit = 15;
+		} else if (!isShown()) {
+			// App bi an hoan toan (minimize, tat man hinh...)
 			if (!wasHidden) {
 				wasHidden = true;
 				try {
