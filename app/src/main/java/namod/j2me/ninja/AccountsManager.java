@@ -71,8 +71,39 @@ public class AccountsManager {
     }
 
     public void add(AccountModel acc) {
+        // Tu dong gan slot rieng neu chua co
+        if (acc.slotIndex < 0) {
+            acc.slotIndex = getNextSlot();
+        }
         accounts.add(acc);
         save();
+    }
+
+    /** Tim slot chua duoc su dung */
+    private int getNextSlot() {
+        java.util.Set<Integer> used = new java.util.HashSet<>();
+        for (AccountModel a : accounts) {
+            if (a.slotIndex >= 0) used.add(a.slotIndex);
+        }
+        int slot = 0;
+        while (used.contains(slot)) slot++;
+        return slot;
+    }
+
+    /**
+     * Fix cac nick cu co slotIndex=-1 bang cach gan slot theo thu tu.
+     * Goi o onCreate cua NinjaManagerActivity.
+     */
+    public boolean assignSlotsIfNeeded() {
+        boolean changed = false;
+        for (AccountModel a : accounts) {
+            if (a.slotIndex < 0) {
+                a.slotIndex = getNextSlot();
+                changed = true;
+            }
+        }
+        if (changed) save();
+        return changed;
     }
 
     public void update(int index, AccountModel acc) {

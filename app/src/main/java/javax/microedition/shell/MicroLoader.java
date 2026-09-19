@@ -290,6 +290,17 @@ public class MicroLoader {
 					mAC.setAccessible(true);
 					mAC.invoke(scr);
 					android.util.Log.i("MicroLoader", "[AutoChar] SelectCharScr.gameAC() called! Entering game ✓");
+					// Chuyen game xuong nen sau khi da vao game
+					new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+						try {
+							android.content.Intent minIntent = new android.content.Intent("namod.j2me.MINIMIZE_GAME");
+							minIntent.addFlags(android.content.Intent.FLAG_RECEIVER_FOREGROUND);
+							ContextHolder.getAppContext().sendBroadcast(minIntent);
+							android.util.Log.i("MicroLoader", "[AutoChar] MINIMIZE_GAME sent - game chay ngam");
+						} catch (Exception ex) {
+							android.util.Log.w("MicroLoader", "[AutoChar] minimize error: " + ex.getMessage());
+						}
+					}, 3000L); // cho 3s de game load xong man hinh chinh
 					break;
 				} catch (Exception e) {
 					android.util.Log.w("MicroLoader", "[AutoChar] attempt " + attempt + ": " + e.getMessage());

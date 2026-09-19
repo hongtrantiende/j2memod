@@ -75,6 +75,8 @@ public class NinjaManagerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_ninja_manager);
 
         accountsManager = new AccountsManager(this);
+        accountsManager.assignSlotsIfNeeded(); // fix nick cu co slotIndex=-1
+
 
         setupViews();
         ensureGameInstalled();

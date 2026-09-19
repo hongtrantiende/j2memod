@@ -100,7 +100,14 @@ public class MicroActivity extends AppCompatActivity {
 	private final BroadcastReceiver closeReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			finish();
+			String action = intent.getAction();
+			if ("namod.j2me.MINIMIZE_GAME".equals(action)) {
+				// Chuyen game xuong nen, giu nguyen trang thai
+				moveTaskToBack(true);
+			} else {
+				// CLOSE_GAME -> ket thuc hoan toan
+				finish();
+			}
 		}
 	};
 
@@ -119,6 +126,7 @@ public class MicroActivity extends AppCompatActivity {
 
 		IntentFilter filter = new IntentFilter("namod.j2me.CLOSE_GAME");
 		filter.addAction("com.hunghero.j2me.CLOSE_GAME");
+		filter.addAction("namod.j2me.MINIMIZE_GAME"); // chuyen game xuong nen
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 			registerReceiver(closeReceiver, filter, Context.RECEIVER_EXPORTED);
 		} else {
