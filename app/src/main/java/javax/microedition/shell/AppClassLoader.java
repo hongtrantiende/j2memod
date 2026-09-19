@@ -43,9 +43,13 @@ public class AppClassLoader extends DexClassLoader {
 	private static File resFolder;
 	private static ZipFile zipFile;
 
+	/** Static reference đến ClassLoader hiện tại của MIDlet đang chạy. */
+	public static volatile AppClassLoader instance;
+
 	public AppClassLoader(String paths, String tmpDir, ClassLoader parent, File resDir) {
 		super(paths, tmpDir, null, new CoreClassLoader(parent));
 		resFolder = resDir;
+		instance = this;
 		prepareZipFile();
 		ACRA.getErrorReporter().putCustomData("Running app", getName());
 	}

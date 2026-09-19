@@ -241,31 +241,44 @@ public class AutoLaunchManager {
 
 
     /**
-     * Sau khi game mở, chờ ~6s rồi gửi lệnh chat "dn user pass"
-     * qua reflection gọi ChatRouter.checkAll() để trigger AutoLogin.doLogin()
+     * Sau khi game mở, chờ rồi gửi lệnh "dn user pass" qua ChatRouter.checkAll()
+     * Dùng AppClassLoader.instance — ClassLoader thực sự load converted.dex
      */
     private void scheduleAutoLoginCommand(String username, String password) {
-        // Chờ game load xong màn hình đăng nhập
-        mainHandler.postDelayed(() -> {
-            executor.execute(() -> {
+        // Retry tối đa 5 lần, mỗi lần cách 5s, bắt đầu sau 10s
+        executor.execute(() -> {
+            for (int attempt = 0; attempt < 5; attempt++) {
                 try {
+                    // Chờ game load (10s lần đầu, 5s các lần sau)
+                    Thread.sleep(attempt == 0 ? 10000 : 5000);
+
+                    // Lấy AppClassLoader của MIDlet đang chạy
+                    javax.microedition.shell.AppClassLoader cl =
+                            javax.microedition.shell.AppClassLoader.instance;
+                    if (cl == null) {
+                        Log.w(TAG, "AppClassLoader.instance null, retry " + attempt);
+                        continue;
+                    }
+
+                    // Gọi ChatRouter.checkAll("dn user pass")
                     String cmd = "dn " + username + " " + password;
-                    // Reflection gọi ChatRouter.checkAll(cmd)
-                    ClassLoader cl = Thread.currentThread().getContextClassLoader();
-                    if (cl == null) cl = ctx.getClassLoader();
                     Class<?> chatRouter = cl.loadClass("ChatRouter");
                     java.lang.reflect.Method checkAll =
                             chatRouter.getMethod("checkAll", String.class);
-                    checkAll.invoke(null, cmd);
-                    Log.i(TAG, "Sent auto-login command: dn " + username);
+                    boolean handled = (boolean) checkAll.invoke(null, cmd);
+                    Log.i(TAG, "ChatRouter.checkAll(\"" + cmd + "\") = " + handled
+                            + " (attempt " + attempt + ")");
+                    if (handled) break; // login thành công
+
+                } catch (ClassNotFoundException e) {
+                    Log.w(TAG, "ChatRouter not found yet (attempt " + attempt + "): " + e.getMessage());
                 } catch (Exception e) {
-                    Log.w(TAG, "scheduleAutoLoginCommand reflection failed: " + e.getMessage());
-                    // Fallback: dùng System property để game đọc ở màn hình login
-                    System.setProperty("ninja.auto_login", username + "|" + password);
+                    Log.w(TAG, "scheduleAutoLogin attempt " + attempt + " failed: " + e.getMessage());
                 }
-            });
-        }, 6000); // chờ 6 giây
+            }
+        });
     }
+
 
     /** Khởi động MicroActivity với NinjaNamod — chạy trong converted/NinjaNamod/. */
     private void startGame(String jarPath) {
