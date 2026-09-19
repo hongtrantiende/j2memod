@@ -55,11 +55,17 @@ public class AutoLaunchManager {
                 String jarPath = prepareJar();
                 if (jarPath == null) throw new Exception("Không tìm thấy NinjaNamod.jar!");
 
-                // 1. Ghi RMS để lần sau khởi động tự điền sẵn
+                // 1. Kill game cũ nếu đang chạy → để RMS cache được clear
+                killGameIfRunning();
+                Thread.sleep(1500); // chờ MicroActivity tắt hẳn
+
+                // 2. Ghi RMS acc/pass → game sẽ đọc khi khởi động mới
                 preWriteRmsCredentials(account.username, account.password);
-                // 2. Mở game
+
+                // 3. Mở game (đọc RMS mới → tự điền username/password)
                 startGame(jarPath);
-                // 3. Sau 6s, gửi lệnh chat "dn user pass" để login ngay
+
+                // 4. Fallback: sau 8s gửi lệnh chat "dn user pass" nếu cần
                 scheduleAutoLoginCommand(account.username, account.password);
 
                 if (onSuccess != null) mainHandler.post(onSuccess);
@@ -70,6 +76,22 @@ public class AutoLaunchManager {
             }
         });
     }
+
+    /**
+     * Gửi broadcast CLOSE_GAME để kill MicroActivity đang chạy (nếu có).
+     * Game sẽ kết thúc gracefully trước khi ta restart.
+     */
+    private void killGameIfRunning() {
+        try {
+            android.content.Intent closeIntent = new android.content.Intent("namod.j2me.CLOSE_GAME");
+            closeIntent.addFlags(android.content.Intent.FLAG_RECEIVER_FOREGROUND);
+            ctx.sendBroadcast(closeIntent);
+            Log.i(TAG, "Sent CLOSE_GAME broadcast");
+        } catch (Exception e) {
+            Log.w(TAG, "killGameIfRunning: " + e.getMessage());
+        }
+    }
+
 
     /** Launch N tài khoản liên tiếp với delay giữa mỗi cái. */
     public void launchMultiple(java.util.List<AccountModel> accounts, long delayMs) {
