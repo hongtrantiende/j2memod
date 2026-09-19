@@ -248,6 +248,7 @@ public class MicroLoader {
 						gameAG.setAccessible(true);
 						gameAG.invoke(loginScr);
 						android.util.Log.i("MicroLoader", "[AutoLogin] LoginScr.gameAG() called! Login submitted ✓");
+						scheduleSelectChar(loader); // tiếp tục tự chọn nhân vật
 						break; // thành công
 
 					} catch (Exception e) {
@@ -258,6 +259,44 @@ public class MicroLoader {
 		4000L); // chờ 4s cho login screen xuất hiện
 	}
 
+	/**
+	 * Poll GameCanvas.currentScreen cho den khi la SelectCharScr,
+	 * roi tu dong chon nhan vat dau tien va goi gameAC().
+	 */
+	private void scheduleSelectChar(ClassLoader loader) {
+		new Thread(() -> {
+			for (int attempt = 0; attempt < 15; attempt++) {
+				try {
+					Thread.sleep(3000);
+					Class<?> gc = loader.loadClass("GameCanvas");
+					java.lang.reflect.Field fCur = gc.getDeclaredField("currentScreen");
+					fCur.setAccessible(true);
+					Object scr = fCur.get(null);
+					if (scr == null) { android.util.Log.w("MicroLoader", "[AutoChar] null screen, retry " + attempt); continue; }
+					if (!scr.getClass().getSimpleName().equals("SelectCharScr")) {
+						android.util.Log.w("MicroLoader", "[AutoChar] screen=" + scr.getClass().getSimpleName() + ", retry " + attempt);
+						continue;
+					}
+					// isNullChar = chua co nhan vat
+					java.lang.reflect.Field fNull = scr.getClass().getDeclaredField("isNullChar");
+					fNull.setAccessible(true);
+					if (fNull.getBoolean(scr)) { android.util.Log.w("MicroLoader", "[AutoChar] isNullChar=true"); break; }
+					// indexSelect = 0 (nhan vat dau tien)
+					java.lang.reflect.Field fIdx = scr.getClass().getDeclaredField("indexSelect");
+					fIdx.setAccessible(true);
+					fIdx.setInt(scr, 0);
+					// gameAC() = chon nhan vat -> vao game
+					java.lang.reflect.Method mAC = scr.getClass().getDeclaredMethod("gameAC");
+					mAC.setAccessible(true);
+					mAC.invoke(scr);
+					android.util.Log.i("MicroLoader", "[AutoChar] SelectCharScr.gameAC() called! Entering game ✓");
+					break;
+				} catch (Exception e) {
+					android.util.Log.w("MicroLoader", "[AutoChar] attempt " + attempt + ": " + e.getMessage());
+				}
+			}
+		}).start();
+	}
 
 	private void setProperties() {
 		final Locale defaultLocale = Locale.getDefault();
