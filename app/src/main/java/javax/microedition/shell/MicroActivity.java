@@ -270,6 +270,7 @@ public class MicroActivity extends AppCompatActivity {
 
 		SlotRegistry.setFocusedSlot(slotIndex);
 		Config.setSlotIndex(slotIndex);
+		currentSession = session;
 		showFocusedSlot();
 		refreshTabBar();
 	}
@@ -277,13 +278,26 @@ public class MicroActivity extends AppCompatActivity {
 	/** An tat ca cell, chi hien cell cua focused slot */
 	private void showFocusedSlot() {
 		int focused = SlotRegistry.getFocusedSlot();
+		// Slot 0 dung layout chinh (luon visible), chi an/hien SlotCell cua slot 1+
 		for (SlotCell cell : cells) {
 			cell.setVisibility(cell.slot == focused ? View.VISIBLE : View.GONE);
+		}
+		// Slot 0's layout luon visible, nhung an khi focus slot khac
+		if (focused == 0) {
+			layout.setVisibility(View.VISIBLE);
+		} else {
+			// Khong an layout slot 0 hoan toan - chi an noi dung de game loop van chay
+			// layout.setVisibility(View.INVISIBLE) thay vi GONE de view hierarchy van intact
+			layout.setVisibility(View.INVISIBLE);
 		}
 		// Cap nhat current displayable
 		SlotSession session = SlotRegistry.get(focused);
 		if (session != null && session.current != null) {
 			current = session.current;
+			// Repaint Canvas cua slot duoc focus de khong bi den
+			if (current instanceof Canvas) {
+				((Canvas) current).repaint();
+			}
 		}
 	}
 

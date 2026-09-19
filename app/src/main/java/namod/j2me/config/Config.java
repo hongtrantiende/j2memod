@@ -63,6 +63,14 @@ public class Config {
 	}
 
 	public static String getDataDir() {
+		// Uu tien lay dataDir tu SlotSession cua thread hien tai
+		try {
+			javax.microedition.shell.SlotSession session =
+				javax.microedition.shell.SlotRegistry.current();
+			if (session != null && session.getDataDir() != null) {
+				return session.getDataDir();
+			}
+		} catch (Throwable ignored) {}
 		return dataDir;
 	}
 
