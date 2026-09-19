@@ -208,15 +208,16 @@ public class MicroActivity extends AppCompatActivity {
 		}
 	}
 
-	/** Cap nhat chip [1][2][3] tren tab bar */
+	/** Cap nhat chip [1][2][3] tren tab bar - luon hien thanh tab de [+] luon bam duoc */
 	private void refreshTabBar() {
 		if (slotTabBar == null) return;
+		slotTabBar.setVisibility(View.VISIBLE); // luon hien
 		java.util.List<namod.j2me.tabs.TabManager.GameTab> tabs = TabManager.get().getTabs();
 		if (tabs.size() < 2) {
-			slotTabBar.setVisibility(View.GONE);
+			// Chi 1 tab: hien thanh nhung chip so an (chi co [X][+][++])
+			slotTabBar.refresh(new int[0], -1);
 			return;
 		}
-		slotTabBar.setVisibility(View.VISIBLE);
 		int[] labels = new int[tabs.size()];
 		int focused = 0;
 		for (int i = 0; i < tabs.size(); i++) {

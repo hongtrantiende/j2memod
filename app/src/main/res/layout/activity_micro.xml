@@ -28,12 +28,11 @@
             android:layout_weight="1"
             android:background="?android:colorBackground" />
 
-        <!-- Tab bar: chi hien khi co tu 2 tab tro len -->
+        <!-- Tab bar: luon hien, chip so chi hien khi co 2+ tab -->
         <javax.microedition.shell.SlotTabBar
             android:id="@+id/slot_tab_bar"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:visibility="gone" />
+            android:layout_height="40dp" />
     </LinearLayout>
 
     <javax.microedition.lcdui.overlay.OverlayView
