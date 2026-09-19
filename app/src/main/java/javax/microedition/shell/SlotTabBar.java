@@ -1,9 +1,9 @@
 package javax.microedition.shell;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.HorizontalScrollView;
@@ -12,16 +12,16 @@ import android.widget.TextView;
 
 /**
  * Thanh tab phia duoi MicroActivity: [1][2][3] ... [X][+][++]
- * Tuong tu NST SlotTabBar.
+ * Co the dung ca tu XML (2-arg constructor) va tu code (2-arg constructor).
  */
 public final class SlotTabBar extends LinearLayout {
     public static final int HEIGHT_DP = 40;
     private static final int BTN_WIDTH_DP = 40;
     private static final int TAB_WIDTH_DP = 38;
-    private static final int COLOR_BAR = 0xFF1A1A2E;
-    private static final int COLOR_TAB_ON = 0xFF00E5FF;
+    private static final int COLOR_BAR    = 0xFF1A1A2E;
+    private static final int COLOR_TAB_ON  = 0xFF00E5FF;
     private static final int COLOR_TAB_OFF = 0xFF2A2A4A;
-    private static final int COLOR_TEXT_ON = 0xFF000000;
+    private static final int COLOR_TEXT_ON  = 0xFF000000;
     private static final int COLOR_TEXT_OFF = 0xFFAAAAAA;
 
     public interface Listener {
@@ -31,17 +31,28 @@ public final class SlotTabBar extends LinearLayout {
         void onCloseCurrent();
     }
 
-    private final Listener listener;
-    private final LinearLayout tabs;
-    private final HorizontalScrollView scroller;
-    private final int tabWidthPx;
+    private Listener listener;
+    private LinearLayout tabs;
+    private HorizontalScrollView scroller;
+    private int tabWidthPx;
     private int[] shownLabels = new int[0];
     private int shownFocused = -1;
 
+    /** Constructor tu XML layout */
+    public SlotTabBar(Context ctx, AttributeSet attrs) {
+        super(ctx, attrs);
+        init(ctx);
+    }
+
+    /** Constructor tu code */
     public SlotTabBar(Context ctx, Listener listener) {
         super(ctx);
         this.listener = listener;
-        this.tabWidthPx = dp(ctx, TAB_WIDTH_DP);
+        init(ctx);
+    }
+
+    private void init(Context ctx) {
+        tabWidthPx = dp(ctx, TAB_WIDTH_DP);
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         setBackgroundColor(COLOR_BAR);
@@ -57,9 +68,13 @@ public final class SlotTabBar extends LinearLayout {
         sv.addView(tabRow, new LayoutParams(-2, -1));
         addView(sv, new LayoutParams(0, -1, 1f));
 
-        addView(btn(ctx, "X", v -> listener.onCloseCurrent()));
-        addView(btn(ctx, "+", v -> listener.onAddOne()));
-        addView(btn(ctx, "++", v -> listener.onAddMany()));
+        addView(btn(ctx, "X", v -> { if (listener != null) listener.onCloseCurrent(); }));
+        addView(btn(ctx, "+", v -> { if (listener != null) listener.onAddOne(); }));
+        addView(btn(ctx, "++", v -> { if (listener != null) listener.onAddMany(); }));
+    }
+
+    public void setListener(Listener l) {
+        this.listener = l;
     }
 
     private TextView btn(Context ctx, String text, View.OnClickListener click) {
@@ -81,24 +96,22 @@ public final class SlotTabBar extends LinearLayout {
         tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13f);
         tv.setGravity(Gravity.CENTER);
         tv.setSingleLine(true);
-        tv.setOnClickListener(v -> listener.onTabSelected(index));
+        tv.setOnClickListener(v -> { if (listener != null) listener.onTabSelected(index); });
         tv.setLayoutParams(new LayoutParams(tabWidthPx, -1));
         return tv;
     }
 
     private void paint(int i, boolean focused) {
-        if (i < 0 || i >= tabs.getChildCount()) return;
+        if (tabs == null || i < 0 || i >= tabs.getChildCount()) return;
         TextView tv = (TextView) tabs.getChildAt(i);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(getContext(), 6));
         if (focused) {
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dp(getContext(), 6));
             bg.setColor(COLOR_TAB_ON);
             tv.setBackground(bg);
             tv.setTextColor(COLOR_TEXT_ON);
             tv.setTypeface(null, Typeface.BOLD);
         } else {
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dp(getContext(), 6));
             bg.setColor(COLOR_TAB_OFF);
             tv.setBackground(bg);
             tv.setTextColor(COLOR_TEXT_OFF);
@@ -111,7 +124,6 @@ public final class SlotTabBar extends LinearLayout {
         int len = labels.length;
         if (focused < 0 || focused >= len) focused = len > 0 ? len - 1 : -1;
 
-        // Chi update highlight neu labels khong thay doi
         if (java.util.Arrays.equals(labels, shownLabels)) {
             if (focused == shownFocused) return;
             paint(shownFocused, false);
@@ -121,12 +133,9 @@ public final class SlotTabBar extends LinearLayout {
             return;
         }
 
-        // Xoa bo cac chip thua
         while (tabs.getChildCount() > len) tabs.removeViewAt(tabs.getChildCount() - 1);
-        // Them chip moi
         Context ctx = getContext();
         for (int i = tabs.getChildCount(); i < len; i++) tabs.addView(makeChip(ctx, i));
-
         shownLabels = labels.clone();
         shownFocused = focused;
         for (int i = 0; i < len; i++) {
@@ -137,7 +146,7 @@ public final class SlotTabBar extends LinearLayout {
     }
 
     private void scrollToFocused(final int focused) {
-        if (focused < 0) return;
+        if (focused < 0 || scroller == null) return;
         scroller.post(() -> scroller.smoothScrollTo(
             Math.max(0, focused * tabWidthPx - scroller.getWidth() / 2 + tabWidthPx / 2), 0));
     }
