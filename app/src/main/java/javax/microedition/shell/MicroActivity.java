@@ -215,6 +215,32 @@ public class MicroActivity extends AppCompatActivity {
 			Log.e("MicroActivity", "Failed to start ForegroundService", t);
 		}
 
+		// ===== DANG KY SLOT-0 & TAO SLOTTABBAR TRUOC KHI LOAD MIDLET =====
+		String appPath = intent.getDataString();
+		SlotSession slot0 = SlotRegistry.get(0) != null ? SlotRegistry.get(0) : SlotRegistry.create(0);
+		slot0.appName = appName;
+		slot0.appPath = appPath;
+		SlotRegistry.bind(slot0);
+		SlotRegistry.setFocusedSlot(0);
+
+		// Tao SlotTabBar va them vao cuoi virtual_display
+		FrameLayout rootFrame = findViewById(R.id.displayable_container);
+		if (rootFrame != null && rootFrame.getParent() instanceof LinearLayout) {
+			LinearLayout root = (LinearLayout) rootFrame.getParent();
+			slotTabBar = new SlotTabBar(this, tabBarListener);
+			SlotRegistry.addListener((sessions, focused) -> runOnUiThread(this::refreshTabBar));
+			root.addView(slotTabBar, new LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT, SlotTabBar.heightPx(this)));
+			slotHost = new LinearLayout(this);
+		}
+
+		// Tao cell-0
+		SlotCell cell0 = newCell(0);
+		slot0.container = cell0;
+		if (cell0 != null) cell0.clearPlaceholder();
+		refreshTabBar();
+		// ===================================================
+
 		if (MidletThread.isActive()) {
 			Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
 			if (currentDisplayable != null) {
@@ -229,42 +255,6 @@ public class MicroActivity extends AppCompatActivity {
 			e.printStackTrace();
 			showErrorDialog(e.toString());
 		}
-
-        // Dang ky slot-0 voi SlotRegistry
-        SlotSession slot0;
-        if (SlotRegistry.get(0) == null) {
-            slot0 = SlotRegistry.create(0);
-        } else {
-            slot0 = SlotRegistry.get(0);
-        }
-        slot0.appName = appName;
-        slot0.appPath = intent.getDataString();
-        SlotRegistry.bind(slot0);
-        SlotRegistry.setFocusedSlot(0);
-
-        // Tao slotHost + SlotTabBar phia duoi
-        FrameLayout rootFrame = findViewById(R.id.displayable_container);
-        if (rootFrame != null && rootFrame.getParent() instanceof LinearLayout) {
-            LinearLayout root = (LinearLayout) rootFrame.getParent();
-            slotHost = new LinearLayout(this);
-            slotHost.setOrientation(LinearLayout.VERTICAL);
-
-            // Them slotHost + tabBar vao root layout (phia tren displayable_container)
-            // slotHost hien thi slot dang focus trong layout cha
-            slotTabBar = new SlotTabBar(this, tabBarListener);
-            SlotRegistry.addListener((sessions, focused) -> runOnUiThread(() -> refreshTabBar()));
-
-            // Them tab bar vao cuoi man hinh
-            LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, SlotTabBar.heightPx(this));
-            root.addView(slotTabBar, tabParams);
-        }
-
-        // Tao cell-0 cho slot dau tien
-        SlotCell cell0 = newCell(0);
-        slot0.container = cell0;
-        if (cell0 != null) cell0.clearPlaceholder();
-        refreshTabBar();
 	}
 
     /** Tao SlotCell moi va them vao cells list theo thu tu slot */
@@ -310,20 +300,32 @@ public class MicroActivity extends AppCompatActivity {
 
     /** Khoi dong game vao slot chi dinh */
     public void launchSlot(int slotIndex, String path, String name) {
+        // Lay hoac tao session
         SlotSession session = SlotRegistry.get(slotIndex);
         if (session == null) {
             session = SlotRegistry.create(slotIndex);
         }
-        session.appPath = path;
-        session.appName = name;
+        if (path != null && !path.isEmpty()) session.appPath = path;
+        if (name != null && !name.isEmpty()) session.appName = name;
+        final SlotSession finalSession = session;
         SlotRegistry.bind(session);
         SlotCell cell = cellOf(slotIndex);
         if (cell != null) {
             cell.clearPlaceholder();
             session.container = cell;
         }
+        // Neu da co midletThread thi chi can switch hien thi
+        if (session.midletThread != null) {
+            selectSlot(slotIndex);
+            return;
+        }
         // Khoi tao MicroLoader va chay game
-        MicroLoader loader = new MicroLoader(this, path);
+        final String loadPath = session.appPath;
+        if (loadPath == null || loadPath.isEmpty()) {
+            Toast.makeText(this, "Khong co path JAR cho slot " + (slotIndex + 1), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        MicroLoader loader = new MicroLoader(this, loadPath);
         if (!loader.init()) {
             Toast.makeText(this, "Loi khoi tao JAR slot " + (slotIndex + 1), Toast.LENGTH_SHORT).show();
             return;
@@ -334,9 +336,9 @@ public class MicroActivity extends AppCompatActivity {
             java.util.LinkedHashMap<String, String> midlets = loader.loadMIDletList();
             String[] classes = midlets.keySet().toArray(new String[0]);
             if (classes.length == 0) return;
-            MidletThread.create(loader, classes[0]);
+            MidletThread t = MidletThread.create(loader, classes[0]);
         } catch (Exception e) {
-            Log.e("MicroActivity", "launchSlot error", e);
+            Log.e("MicroActivity", "launchSlot error slot=" + slotIndex, e);
         }
         selectSlot(slotIndex);
     }
