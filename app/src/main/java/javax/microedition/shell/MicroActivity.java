@@ -238,8 +238,11 @@ public class MicroActivity extends AppCompatActivity {
 		// Set currentSession cho UI thread
 		currentSession = session;
 
-		// Tab 2+ dung lai microLoader tu tab 1 (khong goi init/applyConfiguration lai
-		// vi chung ghi de static state cua Display, EventQueue, MIDlet.initProps...)
+		// Set data dir cho slot nay
+		Config.setSlotIndex(slotIndex);
+
+		// Dung lai microLoader (cung appPath, cung config)
+		// loadMIDlet se tao classloader RIENG per slot
 		session.microLoader = microLoader;
 		MicroLoader loader = microLoader;
 

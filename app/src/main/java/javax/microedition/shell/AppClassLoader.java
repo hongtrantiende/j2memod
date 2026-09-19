@@ -40,22 +40,52 @@ import namod.j2me.config.Config;
 public class AppClassLoader extends DexClassLoader {
 	private static final String TAG = ContextHolder.class.getName();
 
-	private static File resFolder;
-	private static ZipFile zipFile;
-
-	/** Static reference đến ClassLoader hiện tại của MIDlet đang chạy. */
+	/** ClassLoader cua slot dang focus (fallback khi chi co 1 slot) */
 	public static volatile AppClassLoader instance;
+
+	// Per-instance fields (khong con static)
+	private final File resFolder;
+	private final ZipFile zipFile;
+	private final String name;
 
 	public AppClassLoader(String paths, String tmpDir, ClassLoader parent, File resDir) {
 		super(paths, tmpDir, null, new CoreClassLoader(parent));
-		resFolder = resDir;
+		this.resFolder = resDir;
+		this.name = resDir.getParentFile().getName();
+
+		// Prepare zip file per instance
+		File midletResFile = new File(Config.getAppDir(), name + Config.MIDLET_RES_FILE);
+		if (midletResFile.exists()) {
+			this.zipFile = new ZipFile(midletResFile);
+		} else {
+			this.zipFile = null;
+		}
+
 		instance = this;
-		prepareZipFile();
-		ACRA.getErrorReporter().putCustomData("Running app", getName());
+		ACRA.getErrorReporter().putCustomData("Running app", name);
 	}
 
+	/** Lay name tu instance phu hop: SlotRegistry truoc, fallback ve static instance */
 	public static String getName() {
-		return resFolder.getParentFile().getName();
+		// Thu lay tu SlotSession hien tai
+		SlotSession session = SlotRegistry.current();
+		if (session != null && session.classLoader != null) {
+			return session.classLoader.name;
+		}
+		// Fallback
+		if (instance != null) {
+			return instance.name;
+		}
+		return "unknown";
+	}
+
+	/** Lay classloader cua slot hien tai */
+	public static AppClassLoader current() {
+		SlotSession session = SlotRegistry.current();
+		if (session != null && session.classLoader != null) {
+			return session.classLoader;
+		}
+		return instance;
 	}
 
 	@Nullable
@@ -65,6 +95,14 @@ public class AppClassLoader extends DexClassLoader {
 			Log.w(TAG, "Can't load res on empty path");
 			return null;
 		}
+
+		// Lay classloader cua slot hien tai
+		AppClassLoader cl = current();
+		if (cl == null) {
+			Log.w(TAG, "No AppClassLoader available");
+			return null;
+		}
+
 		// Add support for Siemens file path
 		String normName = resName.replace('\\', '/');
 		// Remove double slashes
@@ -78,27 +116,18 @@ public class AppClassLoader extends DexClassLoader {
 			normName = normName.substring(1);
 		}
 		try {
-			return getResourceStream(normName);
+			return cl.getResourceStream(normName);
 		} catch (IOException | NullPointerException e) {
 			Log.w(TAG, "Can't load res: " + resName);
 			return null;
 		}
 	}
 
-	private static void prepareZipFile() {
-		File midletResFile = new File(Config.getAppDir(),
-				AppClassLoader.getName() + Config.MIDLET_RES_FILE);
-		if (midletResFile.exists()) {
-			zipFile = new ZipFile(midletResFile);
-		}
-	}
-
-	private static InputStream getResourceStream(String resName) throws IOException {
+	private InputStream getResourceStream(String resName) throws IOException {
 		InputStream is;
 		byte[] data;
-		File midletResFile = new File(Config.getAppDir(),
-				AppClassLoader.getName() + Config.MIDLET_RES_FILE);
-		if (midletResFile.exists()) {
+		File midletResFile = new File(Config.getAppDir(), name + Config.MIDLET_RES_FILE);
+		if (midletResFile.exists() && zipFile != null) {
 			FileHeader header = zipFile.getFileHeader(resName);
 			is = zipFile.getInputStream(header);
 			data = new byte[(int) header.getUncompressedSize()];
