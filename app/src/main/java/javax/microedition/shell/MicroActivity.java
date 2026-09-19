@@ -144,6 +144,9 @@ public class MicroActivity extends AppCompatActivity {
 		}
 		Intent intent = getIntent();
 		appName = intent.getStringExtra(ConfigActivity.MIDLET_NAME_KEY);
+		// Thiet lap thu muc data rieng biet cho tung slot TRUOC khi init loader
+		tabSlotIndex = intent.getIntExtra("tab_slot_index", 0);
+		Config.setSlotIndex(tabSlotIndex);
 		microLoader = new MicroLoader(this, intent.getDataString());
 		if (!microLoader.init()) {
 			Config.startApp(this, appName, intent.getDataString(), true);

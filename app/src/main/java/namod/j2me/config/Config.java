@@ -66,6 +66,21 @@ public class Config {
 		return dataDir;
 	}
 
+	/**
+	 * Thiet lap thu muc data theo slot - moi tab game co folder data rieng:
+	 * slot 0 -> /data/ (mac dinh)
+	 * slot 1 -> /data2/
+	 * slot 2 -> /data3/ ...
+	 */
+	public static void setSlotIndex(int slotIndex) {
+		if (emulatorDir == null) return;
+		if (slotIndex <= 0) {
+			dataDir = emulatorDir + "/data/";
+		} else {
+			dataDir = emulatorDir + "/data" + (slotIndex + 1) + "/";
+		}
+	}
+
 	public static String getConfigsDir() {
 		return configsDir;
 	}
