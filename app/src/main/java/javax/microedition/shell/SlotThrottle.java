@@ -14,7 +14,7 @@ public final class SlotThrottle {
      * Slot focused chay full FPS, slot ngam cap o backgroundFps.
      */
     public static int capFor(int slot) {
-        if (!SlotRegistry.isMultiSlot() || slot == SlotRegistry.getFocusedSlot()) {
+        if (SlotRegistry.count() <= 1 || slot == SlotRegistry.getFocusedSlot()) {
             return 0; // Khong gioi han
         }
         return backgroundFps;

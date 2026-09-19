@@ -38,7 +38,6 @@ import android.view.MenuItem;
 import android.view.SubMenu;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
@@ -46,6 +45,7 @@ import android.widget.Toast;
 import androidx.preference.PreferenceManager;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 
@@ -67,7 +67,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
-import androidx.preference.PreferenceManager;
 import io.reactivex.SingleObserver;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
@@ -76,7 +75,6 @@ import namod.j2me.FloatingBubbleService;
 import namod.j2me.R;
 import namod.j2me.config.Config;
 import namod.j2me.config.ConfigActivity;
-import namod.j2me.tabs.TabManager;
 import namod.j2me.util.ConsoleOutput;
 import namod.j2me.util.LogConsoleDialogFragment;
 import namod.j2me.util.LogUtils;
@@ -93,23 +91,27 @@ public class MicroActivity extends AppCompatActivity {
 	private boolean actionBarEnabled;
 	private boolean statusBarEnabled;
 	private boolean keyLongPressed;
-	private FrameLayout layout;
+	private FrameLayout layout;          // displayable_container
 	private Toolbar toolbar;
 	private MicroLoader microLoader;
 	private String appName;
-	private int tabSlotIndex = 0;
+	private String appPath;             // path cua game .jar
 	private SlotTabBar slotTabBar;
+
+	// === Slot management (single Activity, nhieu slot) ===
+	private final ArrayList<SlotCell> cells = new ArrayList<>();
+	private boolean addingSlots;
+	private int pendingSlots;
 
 	private final BroadcastReceiver closeReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
 			if ("namod.j2me.MINIMIZE_GAME".equals(action)) {
-				// Chuyen game xuong nen, giu nguyen trang thai
 				moveTaskToBack(true);
 			} else {
 				// CLOSE_GAME -> ket thuc hoan toan
-				finish();
+				MidletThread.destroyApp();
 			}
 		}
 	};
@@ -119,7 +121,7 @@ public class MicroActivity extends AppCompatActivity {
 		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 		setTheme(sp.getString("pref_theme", "light"));
 		super.onCreate(savedInstanceState);
-		getWindow().setWindowAnimations(0); // tat hoan toan window animation
+		getWindow().setWindowAnimations(0);
 		Displayable.isFloatingMode = false;
 		ContextHolder.setCurrentActivity(this);
 		setContentView(R.layout.activity_micro);
@@ -130,7 +132,7 @@ public class MicroActivity extends AppCompatActivity {
 
 		IntentFilter filter = new IntentFilter("namod.j2me.CLOSE_GAME");
 		filter.addAction("com.hunghero.j2me.CLOSE_GAME");
-		filter.addAction("namod.j2me.MINIMIZE_GAME"); // chuyen game xuong nen
+		filter.addAction("namod.j2me.MINIMIZE_GAME");
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 			registerReceiver(closeReceiver, filter, Context.RECEIVER_EXPORTED);
 		} else {
@@ -143,14 +145,16 @@ public class MicroActivity extends AppCompatActivity {
 		if (wakelockEnabled) {
 			getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 		}
+
 		Intent intent = getIntent();
 		appName = intent.getStringExtra(ConfigActivity.MIDLET_NAME_KEY);
-		// Thiet lap thu muc data rieng biet cho tung slot TRUOC khi init loader
-		tabSlotIndex = intent.getIntExtra("tab_slot_index", 0);
-		Config.setSlotIndex(tabSlotIndex);
-		microLoader = new MicroLoader(this, intent.getDataString());
+		appPath = intent.getDataString();
+
+		// === Khoi tao slot dau tien (slot 0) ===
+		Config.setSlotIndex(0);
+		microLoader = new MicroLoader(this, appPath);
 		if (!microLoader.init()) {
-			Config.startApp(this, appName, intent.getDataString(), true);
+			Config.startApp(this, appName, appPath, true);
 			finish();
 			return;
 		}
@@ -178,84 +182,218 @@ public class MicroActivity extends AppCompatActivity {
 			Log.e("MicroActivity", "Failed to start ForegroundService", t);
 		}
 
-		// === DANG KY TAB TRUOC MOI RETURN DE CHIP LUON HIEN ===
-		tabSlotIndex = getIntent().getIntExtra("tab_slot_index", 0);
-		TabManager.get().addTab(getTaskId(), tabSlotIndex, "Tab " + (tabSlotIndex + 1));
+		// === Setup tab bar ===
 		slotTabBar = findViewById(R.id.slot_tab_bar);
 		if (slotTabBar != null) {
 			slotTabBar.setListener(new SlotTabBar.Listener() {
-				@Override public void onTabSelected(int index) { switchToTab(index); }
-				@Override public void onAddOne() { openNewTab(1); }
+				@Override public void onTabSelected(int index) { selectSlot(index); }
+				@Override public void onAddOne() { addSlots(1); }
 				@Override public void onAddMany() { showAddTabsDialog(); }
-				@Override public void onCloseCurrent() { finish(); }
+				@Override public void onCloseCurrent() { closeFocusedSlot(); }
 			});
-			TabManager.get().addListener(changedTabs -> runOnUiThread(() -> refreshTabBar()));
-			refreshTabBar();
-		}
-		// =====================================================
-
-		if (MidletThread.isActive()) {
-			Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
-			if (currentDisplayable != null) {
-				setCurrent(currentDisplayable);
-				return;
-			}
 		}
 
+		// === Tao SlotSession cho slot 0 va launch game ===
+		launchSlot(0, appPath, appName);
+	}
+
+	// =====================================================
+	// SLOT MANAGEMENT - Single Activity, Multiple Slots
+	// =====================================================
+
+	/** Launch 1 slot: tao session, tao cell, load game */
+	private void launchSlot(int slotIndex, String path, String name) {
+		SlotSession existing = SlotRegistry.get(slotIndex);
+		if (existing != null) {
+			// Slot da ton tai -> chi chuyen focus
+			selectSlot(slotIndex);
+			return;
+		}
+
+		// Tao data dir rieng: /data/ cho slot 0, /data2/ cho slot 1, ...
+		String dataDir;
+		if (slotIndex == 0) {
+			dataDir = Config.getDataDir();
+		} else {
+			String base = Config.getEmulatorDir();
+			dataDir = base + "/data" + (slotIndex + 1) + "/";
+			java.io.File dir = new java.io.File(dataDir);
+			if (!dir.exists()) dir.mkdirs();
+		}
+
+		// Tao session
+		SlotSession session = SlotRegistry.create(slotIndex);
+		SlotRegistry.bind(session);
+		session.initializeApp(path, name, dataDir);
+		SlotRegistry.setFocusedSlot(slotIndex);
+
+		// Tao cell (FrameLayout) va them vao container
+		SlotCell cell = newCell(slotIndex);
+		session.setContainer(cell);
+
+		// Init MicroLoader cho slot nay
+		Config.setSlotIndex(slotIndex);
+		MicroLoader loader = new MicroLoader(this, path);
+		if (!loader.init()) {
+			Toast.makeText(this, "Khong the khoi tao slot " + (slotIndex + 1), Toast.LENGTH_SHORT).show();
+			SlotRegistry.remove(session);
+			return;
+		}
+		loader.applyConfiguration();
+		session.microLoader = loader;
+
+		// Load MIDlet
 		try {
-			loadMIDlet();
+			LinkedHashMap<String, String> midlets = loader.loadMIDletList();
+			String[] classArray = midlets.keySet().toArray(new String[0]);
+			if (classArray.length > 0) {
+				MidletThread.create(loader, classArray[0]);
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			showErrorDialog(e.toString());
 		}
+
+		SlotRegistry.bind(SlotRegistry.focused());
+		showFocusedSlot();
+		refreshTabBar();
 	}
 
-	/** Cap nhat chip [1][2][3] tren tab bar - luon hien thanh tab de [+] luon bam duoc */
+	/** Chuyen focus sang slot khac */
+	private void selectSlot(int slotIndex) {
+		if (slotIndex == SlotRegistry.getFocusedSlot()) return;
+		SlotSession session = SlotRegistry.get(slotIndex);
+		if (session == null) return;
+
+		SlotRegistry.setFocusedSlot(slotIndex);
+		Config.setSlotIndex(slotIndex);
+		showFocusedSlot();
+		refreshTabBar();
+	}
+
+	/** An tat ca cell, chi hien cell cua focused slot */
+	private void showFocusedSlot() {
+		int focused = SlotRegistry.getFocusedSlot();
+		for (SlotCell cell : cells) {
+			cell.setVisibility(cell.slot == focused ? View.VISIBLE : View.GONE);
+		}
+		// Cap nhat current displayable
+		SlotSession session = SlotRegistry.get(focused);
+		if (session != null && session.current != null) {
+			current = session.current;
+		}
+	}
+
+	/** Them N slot moi */
+	private void addSlots(int count) {
+		if (addingSlots) {
+			Toast.makeText(this, "Dang them slot...", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		int max = Math.min(count, 20 - cells.size());
+		if (max <= 0) {
+			Toast.makeText(this, "Da dat toi da 20 slot", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		SlotSession current = SlotRegistry.focused();
+		if (current == null || current.getAppPath() == null) return;
+
+		addingSlots = true;
+		pendingSlots = max;
+		layout.post(addOneSlotRunnable);
+	}
+
+	private final Runnable addOneSlotRunnable = new Runnable() {
+		@Override
+		public void run() {
+			if (pendingSlots <= 0 || isFinishing() || isDestroyed()) {
+				addingSlots = false;
+				return;
+			}
+			pendingSlots--;
+			int nextSlot = SlotRegistry.nextFreeSlot();
+			if (nextSlot < 0) {
+				addingSlots = false;
+				return;
+			}
+			launchSlot(nextSlot, appPath, appName);
+			if (pendingSlots > 0) {
+				layout.postDelayed(this, 100);
+			} else {
+				addingSlots = false;
+			}
+		}
+	};
+
+	/** Dong slot dang focus */
+	private void closeFocusedSlot() {
+		if (SlotRegistry.count() <= 1) {
+			// Chi con 1 slot -> thoat game
+			MidletThread.destroyApp();
+			return;
+		}
+		int focusedSlot = SlotRegistry.getFocusedSlot();
+		SlotSession session = SlotRegistry.get(focusedSlot);
+		MidletThread.destroySlot(session);
+	}
+
+	/** Goi tu MidletThread khi 1 slot bi destroy (con slot khac) */
+	public void onSlotRemoved(int removedSlot) {
+		// Xoa cell
+		SlotCell toRemove = cellOf(removedSlot);
+		if (toRemove != null) {
+			layout.removeView(toRemove);
+			cells.remove(toRemove);
+		}
+		// Chuyen focus sang slot con lai
+		if (SlotRegistry.count() > 0) {
+			SlotSession next = SlotRegistry.all().get(0);
+			selectSlot(next.slot);
+		}
+		refreshTabBar();
+	}
+
+	/** Tao SlotCell moi */
+	private SlotCell newCell(int slot) {
+		SlotCell cell = new SlotCell(this, slot, null);
+		cell.clearPlaceholder(); // game se render vao day
+		// Them vao dung vi tri (sap xep theo slot)
+		int pos = cells.size();
+		while (pos > 0 && cells.get(pos - 1).slot > slot) {
+			pos--;
+		}
+		cells.add(pos, cell);
+		layout.addView(cell, new FrameLayout.LayoutParams(
+			FrameLayout.LayoutParams.MATCH_PARENT,
+			FrameLayout.LayoutParams.MATCH_PARENT));
+		return cell;
+	}
+
+	/** Tim cell theo slot index */
+	private SlotCell cellOf(int slot) {
+		for (SlotCell cell : cells) {
+			if (cell.slot == slot) return cell;
+		}
+		return null;
+	}
+
+	/** Cap nhat chip [1][2][3] tren tab bar */
 	private void refreshTabBar() {
 		if (slotTabBar == null) return;
-		slotTabBar.setVisibility(View.VISIBLE); // luon hien
-		java.util.List<namod.j2me.tabs.TabManager.GameTab> tabs = TabManager.get().getTabs();
-		if (tabs.size() < 2) {
-			// Chi 1 tab: hien thanh nhung chip so an (chi co [X][+][++])
+		slotTabBar.setVisibility(View.VISIBLE);
+		ArrayList<SlotSession> sessions = SlotRegistry.all();
+		if (sessions.size() < 2) {
 			slotTabBar.refresh(new int[0], -1);
 			return;
 		}
-		int[] labels = new int[tabs.size()];
+		int[] labels = new int[sessions.size()];
 		int focused = 0;
-		for (int i = 0; i < tabs.size(); i++) {
-			labels[i] = tabs.get(i).slotIndex + 1;
-			if (tabs.get(i).taskId == getTaskId()) focused = i;
+		int focusedSlot = SlotRegistry.getFocusedSlot();
+		for (int i = 0; i < sessions.size(); i++) {
+			labels[i] = sessions.get(i).slot + 1;
+			if (sessions.get(i).slot == focusedSlot) focused = i;
 		}
 		slotTabBar.refresh(labels, focused);
-	}
-
-	/** Chuyen sang tab khac - dung Intent de tranh crash REORDER_TASKS */
-	private void switchToTab(int index) {
-		java.util.List<namod.j2me.tabs.TabManager.GameTab> tabs = TabManager.get().getTabs();
-		if (index < 0 || index >= tabs.size()) return;
-		namod.j2me.tabs.TabManager.GameTab tab = tabs.get(index);
-		if (tab.taskId == getTaskId()) return;
-		try {
-			// Thu moveTaskToFront truoc (co permission)
-			android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
-			if (am != null) am.moveTaskToFront(tab.taskId, android.app.ActivityManager.MOVE_TASK_WITH_HOME);
-		} catch (Exception e) {
-			// Fallback: start activity de bring sang truoc
-			Intent switchIntent = new Intent(this, MicroActivity.class);
-			switchIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
-			switchIntent.putExtra("tab_slot_index", tab.slotIndex);
-			startActivity(switchIntent);
-		}
-	}
-
-	/** Mo them N tab game moi */
-	private void openNewTab(int count) {
-		String path = getIntent().getDataString();
-		if (path == null || path.isEmpty()) return;
-		for (int i = 0; i < count && TabManager.get().getTabCount() < 20; i++) {
-			int slot = TabManager.get().nextSlot();
-			Config.startNewTab(this, appName, path, slot);
-		}
 	}
 
 	/** Dialog nhap so tab */
@@ -264,16 +402,20 @@ public class MicroActivity extends AppCompatActivity {
 		input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
 		input.setText("1");
 		input.setSelectAllOnFocus(true);
-		new androidx.appcompat.app.AlertDialog.Builder(this)
+		new AlertDialog.Builder(this)
 			.setTitle("Mo nhieu man")
 			.setMessage("Nhap so man muon them (toi da 20)")
 			.setView(input)
 			.setNegativeButton("HUY", null)
 			.setPositiveButton("MO", (d, w) -> {
-				try { openNewTab(Integer.parseInt(input.getText().toString().trim())); }
+				try { addSlots(Integer.parseInt(input.getText().toString().trim())); }
 				catch (Exception ignored) {}
 			}).show();
 	}
+
+	// =====================================================
+	// LIFECYCLE
+	// =====================================================
 
 	@Override
 	public void onResume() {
@@ -285,11 +427,8 @@ public class MicroActivity extends AppCompatActivity {
 		intent.setAction("ACTION_HIDE_WINDOW");
 		startService(intent);
 		visible = true;
-		Config.setSlotIndex(tabSlotIndex); // dam bao data dir dung voi slot nay
 		MidletThread.resumeApp();
-		if (current != null) {
-			setCurrent(current);
-		}
+		showFocusedSlot();
 		refreshTabBar();
 	}
 
@@ -297,14 +436,12 @@ public class MicroActivity extends AppCompatActivity {
 	protected void onNewIntent(Intent intent) {
 		super.onNewIntent(intent);
 		Displayable.isFloatingMode = false;
-		if (current != null) {
-			setCurrent(current);
-		}
+		showFocusedSlot();
 	}
 
 	@Override
 	public void onPause() {
-		overridePendingTransition(0, 0); // tat animation chuyen tab
+		overridePendingTransition(0, 0);
 		visible = false;
 		boolean bgRun = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_background_run", true);
 		if (!bgRun && !Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
@@ -318,18 +455,12 @@ public class MicroActivity extends AppCompatActivity {
 		try {
 			unregisterReceiver(closeReceiver);
 		} catch (Exception ignored) {}
-
-		// Huy dang ky tab nay truoc
-		TabManager.get().removeTab(getTaskId());
-
-		// Chi dung ForegroundService & kill process khi la tab CUOI CUNG
-		boolean lastTab = TabManager.get().getTabCount() == 0;
-		if (lastTab && !Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
+		if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
 			stopService(new Intent(this, ForegroundService.class));
 		}
 		ConsoleOutput.clear();
 		super.onDestroy();
-		if (isFinishing() && lastTab) {
+		if (isFinishing()) {
 			if (!Displayable.isFloatingMode && FloatingBubbleService.getInstance() == null) {
 				Process.killProcess(Process.myPid());
 			}
@@ -351,6 +482,85 @@ public class MicroActivity extends AppCompatActivity {
 			}
 		}
 	}
+
+	// =====================================================
+	// DISPLAYABLE MANAGEMENT
+	// =====================================================
+
+	private SimpleEvent msgSetCurrent = new SimpleEvent() {
+		@Override
+		public void process() {
+			if (visible) {
+				Displayable.isFloatingMode = false;
+			}
+			if (Displayable.isFloatingMode && !visible) {
+				current.clearDisplayableView();
+				Intent intent = new Intent(MicroActivity.this, FloatingBubbleService.class);
+				intent.setAction("ACTION_UPDATE_DISPLAYABLE");
+				startService(intent);
+				return;
+			}
+
+			// Tim session tuong ung cua current displayable
+			SlotSession session = SlotRegistry.current();
+			FrameLayout targetContainer = layout; // fallback
+			if (session != null && session.container != null) {
+				targetContainer = session.container;
+			}
+
+			current.clearDisplayableView();
+			View displayableView = current.getDisplayableView();
+			if (displayableView != null) {
+				if (displayableView.getParent() != null) {
+					((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
+				}
+				targetContainer.removeAllViews();
+				targetContainer.addView(displayableView);
+			}
+			invalidateOptionsMenu();
+			ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
+			LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) toolbar.getLayoutParams();
+			if (current instanceof Canvas) {
+				hideSystemUI();
+				if (actionBarEnabled) {
+					String title = current.getTitle();
+					actionBar.setTitle(title == null ? appName : title);
+					layoutParams.height = (int) (getToolBarHeight() / 1.5);
+				} else {
+					actionBar.hide();
+				}
+			} else {
+				showSystemUI();
+				actionBar.show();
+				final String title = current.getTitle();
+				actionBar.setTitle(title == null ? appName : title);
+				layoutParams.height = getToolBarHeight();
+			}
+			toolbar.setLayoutParams(layoutParams);
+		}
+	};
+
+	public void setCurrent(Displayable displayable) {
+		current = displayable;
+		// Cap nhat current trong session tuong ung
+		SlotSession session = SlotRegistry.current();
+		if (session != null) {
+			session.setCurrent(displayable);
+		}
+		ViewHandler.postEvent(msgSetCurrent);
+	}
+
+	public Displayable getCurrent() {
+		return current;
+	}
+
+	public boolean isVisible() {
+		return visible;
+	}
+
+	// =====================================================
+	// UI HELPERS
+	// =====================================================
 
 	@SuppressLint("SourceLockedOrientationActivity")
 	private void setOrientation(int orientation) {
@@ -378,90 +588,6 @@ public class MicroActivity extends AppCompatActivity {
 			setTheme(R.style.AppTheme_NoActionBar);
 		}
 	}
-
-	private void loadMIDlet() throws Exception {
-		LinkedHashMap<String, String> midlets = microLoader.loadMIDletList();
-		int size = midlets.size();
-		String[] midletsNameArray = midlets.values().toArray(new String[0]);
-		String[] midletsClassArray = midlets.keySet().toArray(new String[0]);
-		if (size == 0) {
-			throw new Exception("No MIDlets found");
-		} else if (size == 1) {
-			MidletThread.create(microLoader, midletsClassArray[0]);
-			MidletThread.setCurrentSlot(tabSlotIndex); // ghi nho slot dang chay
-		} else {
-			showMidletDialog(midletsNameArray, midletsClassArray);
-		}
-	}
-
-	private void showMidletDialog(String[] midletsNameArray, final String[] midletsClassArray) {
-		runOnUiThread(() -> {
-			if (isFinishing() || isDestroyed()) return;
-			AlertDialog.Builder builder = new AlertDialog.Builder(this)
-					.setTitle(R.string.select_dialog_title)
-					.setItems(midletsNameArray, (d, n) -> MidletThread.create(microLoader, midletsClassArray[n]))
-					.setOnCancelListener(dialogInterface -> finish());
-			builder.show();
-		});
-	}
-
-	void showErrorDialog(String message) {
-		runOnUiThread(() -> {
-			if (isFinishing() || isDestroyed()) return;
-			AlertDialog.Builder builder = new AlertDialog.Builder(this)
-					.setIcon(android.R.drawable.ic_dialog_alert)
-					.setTitle(R.string.error)
-					.setMessage(message)
-					.setPositiveButton(android.R.string.ok, (d, w) -> ContextHolder.notifyDestroyed());
-			builder.setOnCancelListener(dialogInterface -> ContextHolder.notifyDestroyed());
-			builder.show();
-		});
-	}
-
-	private SimpleEvent msgSetCurrent = new SimpleEvent() {
-		@Override
-		public void process() {
-			if (visible) {
-				Displayable.isFloatingMode = false;
-			}
-			if (Displayable.isFloatingMode && !visible) {
-				current.clearDisplayableView();
-				Intent intent = new Intent(MicroActivity.this, FloatingBubbleService.class);
-				intent.setAction("ACTION_UPDATE_DISPLAYABLE");
-				startService(intent);
-				return;
-			}
-			current.clearDisplayableView();
-			View displayableView = current.getDisplayableView();
-			if (displayableView != null) {
-				if (displayableView.getParent() != null) {
-					((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
-				}
-				layout.removeAllViews();
-				layout.addView(displayableView);
-			}
-			invalidateOptionsMenu();
-			ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
-			LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) toolbar.getLayoutParams();
-			if (current instanceof Canvas) {
-				hideSystemUI();
-				if (actionBarEnabled) {
-					String title = current.getTitle();
-					actionBar.setTitle(title == null ? appName : title);
-					layoutParams.height = (int) (getToolBarHeight() / 1.5);
-				} else {
-					actionBar.hide();
-				}
-			} else {
-				showSystemUI();
-				actionBar.show();
-				final String title = current.getTitle();
-				actionBar.setTitle(title == null ? appName : title);
-				layoutParams.height = getToolBarHeight();
-			}
-			toolbar.setLayoutParams(layoutParams);
-		}
-	};
 
 	private int getToolBarHeight() {
 		int[] attrs = new int[]{androidx.appcompat.R.attr.actionBarSize};
@@ -493,17 +619,17 @@ public class MicroActivity extends AppCompatActivity {
 		}
 	}
 
-	public void setCurrent(Displayable displayable) {
-		current = displayable;
-		ViewHandler.postEvent(msgSetCurrent);
-	}
-
-	public Displayable getCurrent() {
-		return current;
-	}
-
-	public boolean isVisible() {
-		return visible;
+	void showErrorDialog(String message) {
+		runOnUiThread(() -> {
+			if (isFinishing() || isDestroyed()) return;
+			AlertDialog.Builder builder = new AlertDialog.Builder(this)
+					.setIcon(android.R.drawable.ic_dialog_alert)
+					.setTitle(R.string.error)
+					.setMessage(message)
+					.setPositiveButton(android.R.string.ok, (d, w) -> ContextHolder.notifyDestroyed());
+			builder.setOnCancelListener(dialogInterface -> ContextHolder.notifyDestroyed());
+			builder.show();
+		});
 	}
 
 	private void showExitConfirmation() {
@@ -514,6 +640,10 @@ public class MicroActivity extends AppCompatActivity {
 				.setNegativeButton(android.R.string.cancel, null);
 		alertBuilder.create().show();
 	}
+
+	// =====================================================
+	// KEY EVENTS & MENUS
+	// =====================================================
 
 	@Override
 	public boolean dispatchKeyEvent(KeyEvent event) {
@@ -576,7 +706,6 @@ public class MicroActivity extends AppCompatActivity {
 				menu.add(Menu.NONE, cmd.hashCode(), Menu.NONE, cmd.getAndroidLabel());
 			}
 		}
-
 		return super.onPrepareOptionsMenu(menu);
 	}
 
@@ -608,7 +737,6 @@ public class MicroActivity extends AppCompatActivity {
 			}
 			return current.menuItemSelected(id);
 		}
-
 		return super.onOptionsItemSelected(item);
 	}
 
