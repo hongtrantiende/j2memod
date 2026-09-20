@@ -747,11 +747,14 @@ public abstract class Canvas extends Displayable {
 	// GameCanvas
 	public void flushBuffer(Image image, int x, int y, int width, int height) {
 		limitFps();
-		if (!isShown()) {
+		// Background slot: van flush offscreen buffer (game logic can) nhung khong render len man hinh
+		boolean isBackground = isBackgroundSlot();
+		if (!isBackground && !isShown()) {
 			return;
 		}
 		synchronized (paintSync) {
 			offscreenCopy.getSingleGraphics().flush(image, x, y, width, height);
+			if (isBackground) return; // Chi skip render, da flush offscreen buffer
 			if (graphicsMode == 1) {
 				if (innerView != null) {
 					renderer.requestRender();
@@ -774,11 +777,13 @@ public abstract class Canvas extends Displayable {
 	// ExtendedImage
 	public void flushBuffer(Image image, int x, int y) {
 		limitFps();
-		if (!isShown()) {
+		boolean isBackground = isBackgroundSlot();
+		if (!isBackground && !isShown()) {
 			return;
 		}
 		synchronized (paintSync) {
 			image.copyTo(offscreenCopy, x, y);
+			if (isBackground) return; // Chi skip render
 			if (graphicsMode == 1) {
 				if (innerView != null) {
 					renderer.requestRender();
@@ -796,6 +801,14 @@ public abstract class Canvas extends Displayable {
 				uiHandler.sendEmptyMessage(0);
 			}
 		}
+	}
+
+	/** Kiem tra xem Canvas nay thuoc background slot khong */
+	private boolean isBackgroundSlot() {
+		if (SlotRegistry.count() <= 1) return false;
+		SlotSession session = SlotRegistry.current();
+		if (session == null) return false;
+		return session.slot != SlotRegistry.getFocusedSlot();
 	}
 
 	private void limitFps() {
