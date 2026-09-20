@@ -135,10 +135,11 @@ git push origin main:master
 
 #### 3.8.4. Canvas FPS Throttling (Multi-Slot)
 * **Tệp:** [`Canvas.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/javax/microedition/lcdui/Canvas.java) — hàm `limitFps()`
-* **Focused slot:** Luôn chạy **full FPS** (60 FPS), bất kể `isShown()` trả gì. Lý do: Canvas chưa attach vào View hierarchy nhưng game cần chạy mượt.
-* **Background slot (tab nền):** Giới hạn **15 FPS** — đủ để game loop không đơ, nhưng tiết kiệm CPU.
-* **App bị ẩn hoàn toàn:** Giới hạn **3-5 FPS** + xóa cache Image/Font.
-* **Thứ tự ưu tiên:** `isBackgroundSlot` → `!isFocusedSlot && !isShown()` → bình thường.
+* **Focused slot:** Luôn chạy **full FPS** (60 FPS), bất kể `isShown()` trả gì.
+* **Background slot (tab nền):** Giới hạn **2 FPS** — game loop chạy 2 lần/giây (đủ bot + network), xóa cache Image/Font ngay khi ẩn, không render gì cả (`flushBuffer` return early).
+* **App bị ẩn hoàn toàn (tắt màn hình):** Giới hạn **3-5 FPS** + xóa cache Image/Font.
+* **Thứ tự ưu tiên:** `isBackgroundSlot` → `!isAppVisible` → autoSleep → bình thường.
+* **AngelChip tabs:** Tất cả chạy trong 1 slot → game JAR tự quản lý nội bộ, emulator không can thiệp từng tab riêng.
 
 #### 3.8.5. VirtualKeyboard Null Safety
 * **Tệp:** [`VirtualKeyboard.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/javax/microedition/lcdui/pointer/VirtualKeyboard.java)
