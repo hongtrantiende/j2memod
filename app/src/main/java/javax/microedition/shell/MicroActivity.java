@@ -589,14 +589,18 @@ public class MicroActivity extends AppCompatActivity {
 			targetContainer = session.container;
 		}
 
-		disp.clearDisplayableView();
 		View displayableView = disp.getDisplayableView();
 		if (displayableView != null) {
-			if (displayableView.getParent() != null) {
-				((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
+			// Chi remove/add khi view chua o trong dung container
+			if (displayableView.getParent() != targetContainer) {
+				disp.clearDisplayableView();
+				displayableView = disp.getDisplayableView();
+				if (displayableView.getParent() != null) {
+					((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
+				}
+				targetContainer.removeAllViews();
+				targetContainer.addView(displayableView);
 			}
-			targetContainer.removeAllViews();
-			targetContainer.addView(displayableView);
 
 			// Non-Canvas (TextBox/Form/List): dat nen den de khong nhin xuyen qua thay slot khac
 			if (!(disp instanceof Canvas)) {
