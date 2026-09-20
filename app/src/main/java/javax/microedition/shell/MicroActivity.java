@@ -219,6 +219,9 @@ public class MicroActivity extends AppCompatActivity {
 			dataDir = base + "/data" + (slotIndex + 1) + "/";
 			java.io.File dir = new java.io.File(dataDir);
 			if (!dir.exists()) dir.mkdirs();
+			// Copy RMS data tu slot 0 sang slot moi de co cung game state
+			// (ngon ngu, server config, login history...)
+			copyRmsData(Config.getDataDir(), dataDir);
 		}
 
 		// Tao session
@@ -279,6 +282,39 @@ public class MicroActivity extends AppCompatActivity {
 		SlotRegistry.bind(SlotRegistry.focused());
 		showFocusedSlot();
 		refreshTabBar();
+	}
+
+	/** Copy RMS data files tu srcDir sang dstDir (de slot moi co cung game state) */
+	private void copyRmsData(String srcDir, String dstDir) {
+		try {
+			java.io.File src = new java.io.File(srcDir);
+			java.io.File dst = new java.io.File(dstDir);
+			if (!src.exists() || !src.isDirectory()) return;
+			if (!dst.exists()) dst.mkdirs();
+			java.io.File[] files = src.listFiles();
+			if (files == null) return;
+			for (java.io.File file : files) {
+				if (file.isFile()) {
+					java.io.File dstFile = new java.io.File(dst, file.getName());
+					if (!dstFile.exists()) {
+						// Chi copy khi chua ton tai (khong ghi de data cu)
+						try (java.io.InputStream in = new java.io.FileInputStream(file);
+							 java.io.OutputStream out = new java.io.FileOutputStream(dstFile)) {
+							byte[] buf = new byte[4096];
+							int len;
+							while ((len = in.read(buf)) > 0) {
+								out.write(buf, 0, len);
+							}
+						}
+					}
+				} else if (file.isDirectory()) {
+					// Copy subfolders (RMS co the luu trong subdir)
+					copyRmsData(file.getAbsolutePath(), new java.io.File(dst, file.getName()).getAbsolutePath());
+				}
+			}
+		} catch (Exception e) {
+			Log.w("MicroActivity", "copyRmsData failed: " + e.getMessage());
+		}
 	}
 
 	/** Chuyen focus sang slot khac */
