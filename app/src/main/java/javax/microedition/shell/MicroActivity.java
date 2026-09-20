@@ -278,22 +278,20 @@ public class MicroActivity extends AppCompatActivity {
 	/** An tat ca cell, chi hien cell cua focused slot */
 	private void showFocusedSlot() {
 		int focused = SlotRegistry.getFocusedSlot();
-		// Slot 0 dung layout chinh (luon visible), chi an/hien SlotCell cua slot 1+
+		// SlotCell la CON cua layout -> layout phai LUON VISIBLE
+		// Khi slot 1+ duoc focus: SlotCell cua no (MATCH_PARENT) se che slot 0's view
+		// Khi slot 0 duoc focus: tat ca SlotCell bi GONE -> slot 0's view hien ra
 		for (SlotCell cell : cells) {
 			cell.setVisibility(cell.slot == focused ? View.VISIBLE : View.GONE);
 		}
-		// Slot 0's layout luon visible, nhung an khi focus slot khac
-		if (focused == 0) {
-			layout.setVisibility(View.VISIBLE);
-		} else {
-			// Khong an layout slot 0 hoan toan - chi an noi dung de game loop van chay
-			// layout.setVisibility(View.INVISIBLE) thay vi GONE de view hierarchy van intact
-			layout.setVisibility(View.INVISIBLE);
-		}
+		// KHONG bao gio an layout! No chua ca slot 0's view va cac SlotCell
+		layout.setVisibility(View.VISIBLE);
+
 		// Cap nhat current displayable
 		SlotSession session = SlotRegistry.get(focused);
 		if (session != null && session.current != null) {
 			current = session.current;
+			currentSession = session;
 			// Repaint Canvas cua slot duoc focus de khong bi den
 			if (current instanceof Canvas) {
 				((Canvas) current).repaint();
@@ -503,43 +501,44 @@ public class MicroActivity extends AppCompatActivity {
 	/** Session duoc capture khi setCurrent duoc goi tu game thread */
 	private volatile SlotSession currentSession;
 
-	private SimpleEvent msgSetCurrent = new SimpleEvent() {
-		@Override
-		public void process() {
-			if (visible) {
-				Displayable.isFloatingMode = false;
-			}
-			if (Displayable.isFloatingMode && !visible) {
-				current.clearDisplayableView();
-				Intent intent = new Intent(MicroActivity.this, FloatingBubbleService.class);
-				intent.setAction("ACTION_UPDATE_DISPLAYABLE");
-				startService(intent);
-				return;
-			}
+	/** Apply setCurrent tren UI thread voi captured displayable va session */
+	private void applySetCurrent(final Displayable disp, final SlotSession session) {
+		if (visible) {
+			Displayable.isFloatingMode = false;
+		}
+		if (Displayable.isFloatingMode && !visible) {
+			disp.clearDisplayableView();
+			Intent intent = new Intent(MicroActivity.this, FloatingBubbleService.class);
+			intent.setAction("ACTION_UPDATE_DISPLAYABLE");
+			startService(intent);
+			return;
+		}
 
-			// Dung session da capture tu game thread (khong dung ThreadLocal tren UI thread)
-			SlotSession session = currentSession;
-			FrameLayout targetContainer = layout; // fallback
-			if (session != null && session.container != null) {
-				targetContainer = session.container;
-			}
+		FrameLayout targetContainer = layout; // fallback slot 0
+		if (session != null && session.container != null) {
+			targetContainer = session.container;
+		}
 
-			current.clearDisplayableView();
-			View displayableView = current.getDisplayableView();
-			if (displayableView != null) {
-				if (displayableView.getParent() != null) {
-					((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
-				}
-				targetContainer.removeAllViews();
-				targetContainer.addView(displayableView);
+		disp.clearDisplayableView();
+		View displayableView = disp.getDisplayableView();
+		if (displayableView != null) {
+			if (displayableView.getParent() != null) {
+				((android.view.ViewGroup) displayableView.getParent()).removeView(displayableView);
 			}
+			targetContainer.removeAllViews();
+			targetContainer.addView(displayableView);
+		}
+
+		// Chi update toolbar/actionbar cho focused slot
+		if (session == null || session.slot == SlotRegistry.getFocusedSlot()) {
+			current = disp;
 			invalidateOptionsMenu();
 			ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
 			LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) toolbar.getLayoutParams();
-			if (current instanceof Canvas) {
+			if (disp instanceof Canvas) {
 				hideSystemUI();
 				if (actionBarEnabled) {
-					String title = current.getTitle();
+					String title = disp.getTitle();
 					actionBar.setTitle(title == null ? appName : title);
 					layoutParams.height = (int) (getToolBarHeight() / 1.5);
 				} else {
@@ -548,26 +547,36 @@ public class MicroActivity extends AppCompatActivity {
 			} else {
 				showSystemUI();
 				actionBar.show();
-				final String title = current.getTitle();
+				final String title = disp.getTitle();
 				actionBar.setTitle(title == null ? appName : title);
 				layoutParams.height = getToolBarHeight();
 			}
 			toolbar.setLayoutParams(layoutParams);
 		}
-	};
+	}
 
 	public void setCurrent(Displayable displayable) {
-		current = displayable;
 		// Capture session tu game thread (InheritableThreadLocal co gia tri o day)
-		SlotSession session = SlotRegistry.current();
-		if (session != null) {
-			session.setCurrent(displayable);
-			currentSession = session;
+		final SlotSession session;
+		SlotSession threadSession = SlotRegistry.current();
+		if (threadSession != null) {
+			threadSession.setCurrent(displayable);
+			session = threadSession;
 		} else {
-			// Fallback: dung focused session
-			currentSession = SlotRegistry.focused();
+			session = SlotRegistry.focused();
 		}
-		ViewHandler.postEvent(msgSetCurrent);
+		// Update global state
+		current = displayable;
+		currentSession = session;
+
+		// Post voi captured displayable va session — KHONG race condition
+		final Displayable capturedDisp = displayable;
+		ViewHandler.postEvent(new SimpleEvent() {
+			@Override
+			public void process() {
+				applySetCurrent(capturedDisp, session);
+			}
+		});
 	}
 
 	public Displayable getCurrent() {
