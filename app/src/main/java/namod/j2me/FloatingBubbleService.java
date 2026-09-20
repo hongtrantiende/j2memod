@@ -455,8 +455,6 @@ public class FloatingBubbleService extends Service {
             act.runOnUiThread(() -> {
                 act.addSlots(finalCount);
                 Toast.makeText(this, "Dang mo " + finalCount + " slot moi...", Toast.LENGTH_SHORT).show();
-                // Cap nhat chips sau khi slot duoc tao
-                handler.postDelayed(this::updateSlotChips, 500);
             });
         });
 
@@ -472,67 +470,139 @@ public class FloatingBubbleService extends Service {
     }
 
     /**
-     * Cap nhat chip tab [1][2][3]... tu SlotRegistry (multi-slot).
-     * Moi chip khi tap se chuyen focused slot.
+     * Hien thi dialog danh sach slot (nhu ban ghep).
+     * Moi slot hien so + trang thai, tap de chuyen.
      */
     @SuppressLint("SetTextI18n")
-    private void updateSlotChips() {
-        if (this.windowView == null) return;
-        View scrollView = this.windowView.findViewById(R.id.tab_chip_scroll);
-        LinearLayout chipRow = this.windowView.findViewById(R.id.tab_chip_row);
-        if (scrollView == null || chipRow == null) return;
-
-        chipRow.removeAllViews();
-
-        java.util.Collection<javax.microedition.shell.SlotSession> slots = javax.microedition.shell.SlotRegistry.all();
-        if (slots.size() <= 1) {
-            scrollView.setVisibility(View.GONE);
+    private void showSlotListDialog() {
+        java.util.List<javax.microedition.shell.SlotSession> slots = javax.microedition.shell.SlotRegistry.all();
+        if (slots.isEmpty()) {
+            Toast.makeText(this, "Chua co slot nao", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        scrollView.setVisibility(View.VISIBLE);
         int focusedSlot = javax.microedition.shell.SlotRegistry.getFocusedSlot();
+
+        ContextThemeWrapper themeCtx = new ContextThemeWrapper(this, R.style.AppTheme);
+
+        // Tao layout chinh
+        LinearLayout root = new LinearLayout(themeCtx);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4));
+
+        // Danh sach slot
         for (javax.microedition.shell.SlotSession session : slots) {
-            TextView chip = new TextView(this);
-            chip.setText("" + (session.slot + 1));
-            chip.setTextColor(0xFFFFFFFF);
-            chip.setTextSize(11f);
-            chip.setTypeface(null, android.graphics.Typeface.BOLD);
-            chip.setGravity(android.view.Gravity.CENTER);
-            chip.setPadding(dpToPx(10), dpToPx(2), dpToPx(10), dpToPx(2));
+            boolean isFocused = session.slot == focusedSlot;
 
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dpToPx(10));
-            if (session.slot == focusedSlot) {
-                // Slot dang focus: highlight
-                bg.setColor(0x9900E5FF);
-                bg.setStroke(dpToPx(1), 0xFF00E5FF);
+            LinearLayout row = new LinearLayout(themeCtx);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setPadding(dpToPx(14), dpToPx(10), dpToPx(14), dpToPx(10));
+
+            // Background row
+            GradientDrawable rowBg = new GradientDrawable();
+            rowBg.setCornerRadius(dpToPx(10));
+            if (isFocused) {
+                rowBg.setColor(0x3300E5FF);
+                rowBg.setStroke(dpToPx(1), 0xFF00E5FF);
             } else {
-                bg.setColor(0x4400E5FF);
-                bg.setStroke(1, 0x8800E5FF);
+                rowBg.setColor(0x22FFFFFF);
+                rowBg.setStroke(1, 0x33FFFFFF);
             }
-            chip.setBackground(bg);
+            row.setBackground(rowBg);
 
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                dpToPx(20)
+            // So slot (icon tron)
+            TextView numView = new TextView(themeCtx);
+            numView.setText("" + (session.slot + 1));
+            numView.setTextColor(isFocused ? 0xFF00E5FF : 0xFFB0BEC5);
+            numView.setTextSize(16f);
+            numView.setTypeface(null, android.graphics.Typeface.BOLD);
+            numView.setGravity(android.view.Gravity.CENTER);
+            GradientDrawable numBg = new GradientDrawable();
+            numBg.setShape(GradientDrawable.OVAL);
+            numBg.setColor(isFocused ? 0x5500E5FF : 0x33FFFFFF);
+            numView.setBackground(numBg);
+            LinearLayout.LayoutParams numLp = new LinearLayout.LayoutParams(dpToPx(32), dpToPx(32));
+            numView.setLayoutParams(numLp);
+            row.addView(numView);
+
+            // Ten slot + trang thai
+            LinearLayout info = new LinearLayout(themeCtx);
+            info.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            infoLp.setMarginStart(dpToPx(12));
+            info.setLayoutParams(infoLp);
+
+            TextView nameView = new TextView(themeCtx);
+            nameView.setText("Slot " + (session.slot + 1));
+            nameView.setTextColor(0xFFFFFFFF);
+            nameView.setTextSize(14f);
+            nameView.setTypeface(null, android.graphics.Typeface.BOLD);
+            info.addView(nameView);
+
+            TextView statusView = new TextView(themeCtx);
+            statusView.setText(isFocused ? "● Đang hiển thị" : "○ Chạy nền");
+            statusView.setTextColor(isFocused ? 0xFF00E5FF : 0xFF78909C);
+            statusView.setTextSize(11f);
+            info.addView(statusView);
+
+            row.addView(info);
+
+            // Margin giua cac row
+            LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rowLp.bottomMargin = dpToPx(4);
+            row.setLayoutParams(rowLp);
+
+            root.addView(row);
+
+            // Click chuyen slot
+            if (!isFocused) {
+                final int slotIndex = session.slot;
+                row.setOnClickListener(v -> {
+                    MicroActivity activity = ContextHolder.getActivity();
+                    if (activity != null) {
+                        activity.runOnUiThread(() -> activity.selectSlotFromBubble(slotIndex));
+                    }
+                    // Dong dialog
+                    if (v.getTag() instanceof AlertDialog) {
+                        ((AlertDialog) v.getTag()).dismiss();
+                    }
+                });
+            }
+        }
+
+        // Tao dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(themeCtx);
+        builder.setView(root);
+        builder.setNegativeButton("Đóng", null);
+
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setType(
+                Build.VERSION.SDK_INT >= 26
+                    ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    : WindowManager.LayoutParams.TYPE_PHONE
             );
-            lp.setMarginStart(dpToPx(3));
-            lp.setMarginEnd(dpToPx(3));
-            chip.setLayoutParams(lp);
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
 
-            final int slotIndex = session.slot;
-            chip.setOnClickListener(v -> {
-                MicroActivity activity = ContextHolder.getActivity();
-                if (activity != null) {
-                    activity.runOnUiThread(() -> {
-                        activity.selectSlotFromBubble(slotIndex);
-                        // Cap nhat lai chips sau khi chuyen slot
-                        handler.postDelayed(this::updateSlotChips, 200);
-                    });
-                }
-            });
-            chipRow.addView(chip);
+        // Gan dialog vao tag cua row de dong khi click
+        dialog.setOnShowListener(d -> {
+            for (int i = 0; i < root.getChildCount(); i++) {
+                root.getChildAt(i).setTag(dialog);
+            }
+        });
+
+        dialog.show();
+
+        // Style background dialog
+        if (dialog.getWindow() != null) {
+            GradientDrawable dialogBg = new GradientDrawable();
+            dialogBg.setCornerRadius(dpToPx(16));
+            dialogBg.setColor(0xE6263238);
+            dialogBg.setStroke(dpToPx(1), 0x33FFFFFF);
+            dialog.getWindow().setBackgroundDrawable(dialogBg);
         }
     }
 
@@ -583,13 +653,8 @@ public class FloatingBubbleService extends Service {
         if (tabBtn != null) {
             tabBtn.setOnClickListener(v -> triggerTabMenu());
             tabBtn.setOnLongClickListener(v -> {
-                Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
-                if (currentDisplayable instanceof Canvas) {
-                    Canvas canvas = (Canvas) currentDisplayable;
-                    canvas.postKeyPressed(Canvas.KEY_STAR);
-                    canvas.postKeyReleased(Canvas.KEY_STAR);
-                    Toast.makeText(this, "Nhan phim *", Toast.LENGTH_SHORT).show();
-                }
+                // Long press: hien thi danh sach multi-slot
+                showSlotListDialog();
                 return true;
             });
         }
@@ -599,10 +664,6 @@ public class FloatingBubbleService extends Service {
         if (addTabBtn != null) {
             addTabBtn.setOnClickListener(v -> showAddTabDialog());
         }
-
-        // Dang ky listener cap nhat chip tab
-        // Hien thi chips ngay lan dau
-        updateSlotChips();
 
         moveHandle.setOnTouchListener(new View.OnTouchListener() {
             private float initialTouchX;
