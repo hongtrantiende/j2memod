@@ -504,9 +504,12 @@ public class MicroActivity extends AppCompatActivity {
 		overridePendingTransition(0, 0);
 		ContextHolder.setCurrentActivity(this);
 		Displayable.isFloatingMode = false;
-		Intent intent = new Intent(this, FloatingBubbleService.class);
-		intent.setAction("ACTION_HIDE_WINDOW");
-		startService(intent);
+		// Chi gui ACTION_HIDE_WINDOW neu service dang chay (tranh tao service moi vo nghia)
+		if (FloatingBubbleService.getInstance() != null) {
+			Intent intent = new Intent(this, FloatingBubbleService.class);
+			intent.setAction("ACTION_HIDE_WINDOW");
+			startService(intent);
+		}
 		visible = true;
 		MidletThread.resumeApp();
 		showFocusedSlot();
