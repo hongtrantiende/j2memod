@@ -241,15 +241,20 @@ public class MicroActivity extends AppCompatActivity {
 		// Set data dir cho slot nay
 		Config.setSlotIndex(slotIndex);
 
-		// === NST pattern: tao MicroLoader MOI cho moi slot ===
-		// Moi slot can init() + applyConfiguration() rieng de co
-		// Display rieng, properties rieng, network setup rieng
-		MicroLoader loader = new MicroLoader(this, path);
-		if (!loader.init()) {
-			showErrorDialog("init() thất bại cho slot " + slotIndex);
-			return;
+		// === NST pattern: MicroLoader rieng cho moi slot ===
+		MicroLoader loader;
+		if (slotIndex == 0) {
+			// Slot 0: dung microLoader da tao san trong onCreate (da init + applyConfig)
+			loader = microLoader;
+		} else {
+			// Slot 1+: tao MicroLoader MOI, goi init() + applyConfiguration()
+			loader = new MicroLoader(this, path);
+			if (!loader.init()) {
+				showErrorDialog("init() thất bại cho slot " + slotIndex);
+				return;
+			}
+			loader.applyConfiguration();
 		}
-		loader.applyConfiguration();
 		session.microLoader = loader;
 
 		// Load MIDlet
