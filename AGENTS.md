@@ -190,3 +190,24 @@ git push origin main:master
     * *Nguyên nhân:* `selectSlot()` chỉ thay đổi visibility SlotCell trong Activity layout. Floating window có `game_container` riêng, không tự cập nhật.
     * *Giải pháp:* Sau `selectSlot()`, gửi Intent `ACTION_UPDATE_DISPLAYABLE` với `slot_index` extra để FloatingBubbleService lấy đúng displayable từ đúng session.
     * `performUpdateDisplayable(slotIndex)`: nếu `slotIndex >= 0`, lấy displayable từ `SlotRegistry.get(slotIndex).getCurrent()` thay vì `MidletThread.getCurrentDisplayable()`.
+14. **Đơ khi chuyển tab sau khi quay về từ Floating Bubble (Multi-Tab):**
+    * *Nguyên nhân 1:* `hideFloatingWindow()` gọi `clearDisplayableView()` → destroy + recreate SurfaceView → đơ.
+    * *Giải pháp:* **KHÔNG gọi `clearDisplayableView()`** trong `hideFloatingWindow()`. Chỉ di chuyển view hiện có về đúng slot container.
+    * *Nguyên nhân 2:* `MicroActivity.onResume()` gửi `ACTION_HIDE_WINDOW` → tạo service MỚI (cái cũ đã `stopSelf()`) → `hideFloatingWindow()` lần 2 trên service không có context → lỗi view.
+    * *Giải pháp:* Chỉ gửi `ACTION_HIDE_WINDOW` khi `FloatingBubbleService.getInstance() != null`.
+    * *Nguyên nhân 3:* `applySetCurrent()` luôn `clearDisplayableView()` + `getDisplayableView()` → recreate SurfaceView mỗi lần.
+    * *Giải pháp:* Chỉ clear + recreate khi `displayableView.getParent() != targetContainer`.
+15. **`hideFloatingWindow()` phải trả view về đúng slot (Multi-Tab):**
+    * Sử dụng `session.getContainer()` thay vì `displayable_container` cố định.
+    * Trả view cho TẤT CẢ slots (loop `SlotRegistry.all()`), không chỉ focused slot.
+    * Skip view nếu `displayableView.getParent() == targetContainer` (đã đúng chỗ).
+16. **Chuyển tab mượt mà (Crossfade Animation):**
+    * `showFocusedSlot()` sử dụng crossfade 150ms: `cell.setAlpha(0f)` → `cell.animate().alpha(1f).setDuration(150).start()`.
+    * Defer `canvas.repaint()` bằng `canvasView.post(() -> canvas.repaint())` — không block UI thread.
+    * Gán `OverlayView` cho Canvas mới khi chuyển tab: `canvas.setOverlayView(overlayView)`.
+17. **Ẩn thanh tab bar khi game hiển thị List/TextBox/Form:**
+    * Trong `applySetCurrent()`: Canvas → `slotTabBar.setVisibility(View.VISIBLE)`, non-Canvas → `slotTabBar.setVisibility(View.GONE)`.
+18. **Xóa dữ liệu game phải xóa cả multi-tab:**
+    * `showClearDataDialog()` trong `ConfigActivity`: ngoài `FileUtils.clearDirectory(dataDir)` (slot 0), loop xóa thêm `/data2/` → `/data20/` + `dirName`.
+19. **`performUpdateDisplayable()` skip reattach nếu view đã đúng container:**
+    * Kiểm tra `displayableView.getParent() != frameLayout` trước khi remove/add. Tránh recreate SurfaceView không cần thiết.
