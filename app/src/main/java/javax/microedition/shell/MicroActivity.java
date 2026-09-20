@@ -211,6 +211,7 @@ public class MicroActivity extends AppCompatActivity {
 		}
 
 		// Tao data dir rieng: /data/ cho slot 0, /data2/ cho slot 1, ...
+		// Moi tab co du lieu RIENG, khong copy tu tab khac
 		String dataDir;
 		if (slotIndex == 0) {
 			dataDir = Config.getDataDir();
@@ -219,9 +220,6 @@ public class MicroActivity extends AppCompatActivity {
 			dataDir = base + "/data" + (slotIndex + 1) + "/";
 			java.io.File dir = new java.io.File(dataDir);
 			if (!dir.exists()) dir.mkdirs();
-			// Copy RMS data tu slot 0 sang slot moi de co cung game state
-			// (ngon ngu, server config, login history...)
-			copyRmsData(Config.getDataDir(), dataDir);
 		}
 
 		// Tao session
