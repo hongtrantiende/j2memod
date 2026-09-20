@@ -341,16 +341,23 @@ public class MicroActivity extends AppCompatActivity {
 	}
 
 
-	/** An tat ca cell, chi hien cell cua focused slot */
+	/** An tat ca cell, chi hien cell cua focused slot — muot ma voi crossfade */
 	private void showFocusedSlot() {
 		int focused = SlotRegistry.getFocusedSlot();
-		// SlotCell la CON cua layout -> layout phai LUON VISIBLE
-		// Khi slot 1+ duoc focus: SlotCell cua no (MATCH_PARENT) se che slot 0's view
-		// Khi slot 0 duoc focus: tat ca SlotCell bi GONE -> slot 0's view hien ra
+
+		// Toggle SlotCell visibility
 		for (SlotCell cell : cells) {
-			cell.setVisibility(cell.slot == focused ? View.VISIBLE : View.GONE);
+			if (cell.slot == focused) {
+				if (cell.getVisibility() != View.VISIBLE) {
+					cell.setAlpha(0f);
+					cell.setVisibility(View.VISIBLE);
+					cell.animate().alpha(1f).setDuration(150).start();
+				}
+			} else {
+				cell.setVisibility(View.GONE);
+				cell.setAlpha(1f);
+			}
 		}
-		// KHONG bao gio an layout! No chua ca slot 0's view va cac SlotCell
 		layout.setVisibility(View.VISIBLE);
 
 		// Cap nhat current displayable
@@ -358,9 +365,19 @@ public class MicroActivity extends AppCompatActivity {
 		if (session != null && session.current != null) {
 			current = session.current;
 			currentSession = session;
-			// Repaint Canvas cua slot duoc focus de khong bi den
+
+			// Gan OverlayView cho Canvas moi
 			if (current instanceof Canvas) {
-				((Canvas) current).repaint();
+				Canvas canvas = (Canvas) current;
+				OverlayView overlayView = findViewById(R.id.vOverlay);
+				if (overlayView != null) {
+					canvas.setOverlayView(overlayView);
+				}
+				// Defer repaint sang game thread — khong block UI thread
+				View canvasView = canvas.getDisplayableView();
+				if (canvasView != null) {
+					canvasView.post(() -> canvas.repaint());
+				}
 			}
 		}
 	}
