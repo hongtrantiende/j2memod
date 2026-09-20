@@ -29,6 +29,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 
 import javax.microedition.lcdui.event.CommandActionEvent;
+import javax.microedition.lcdui.event.Event;
 import javax.microedition.lcdui.event.SimpleEvent;
 import javax.microedition.shell.MicroActivity;
 import javax.microedition.util.ContextHolder;
@@ -209,7 +210,18 @@ public abstract class Displayable {
 		Command[] array = commands.toArray(new Command[0]);
 		for (Command cmd : array) {
 			if (cmd.hashCode() == id) {
-				Display.postEvent(CommandActionEvent.getInstance(listener, cmd, this));
+				Event event = CommandActionEvent.getInstance(listener, cmd, this);
+				// Uu tien slot hien tai cua thread, fallback ve focused slot
+				// (UI thread khong co slot binding nen can fallback)
+				javax.microedition.shell.SlotSession session = javax.microedition.shell.SlotRegistry.current();
+				if (session == null) {
+					session = javax.microedition.shell.SlotRegistry.focused();
+				}
+				if (session != null) {
+					session.eventQueue().postEvent(event);
+				} else {
+					Display.postEvent(event);
+				}
 			}
 		}
 		return true;
