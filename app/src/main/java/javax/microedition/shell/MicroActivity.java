@@ -333,9 +333,10 @@ public class MicroActivity extends AppCompatActivity {
 	/** Public API cho FloatingBubbleService goi chuyen slot */
 	public void selectSlotFromBubble(int slotIndex) {
 		selectSlot(slotIndex);
-		// Cap nhat view trong floating window
+		// Cap nhat view trong floating window voi slot_index cu the
 		Intent updateIntent = new Intent(this, namod.j2me.FloatingBubbleService.class);
 		updateIntent.setAction("ACTION_UPDATE_DISPLAYABLE");
+		updateIntent.putExtra("slot_index", slotIndex);
 		startService(updateIntent);
 	}
 

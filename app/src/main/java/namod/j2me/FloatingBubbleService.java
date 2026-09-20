@@ -264,12 +264,15 @@ public class FloatingBubbleService extends Service {
             return;
         }
         displayableView.setVisibility(View.VISIBLE);
-        if (displayableView.getParent() != null) {
-            ((ViewGroup) displayableView.getParent()).removeView(displayableView);
-        }
         FrameLayout frameLayout = (FrameLayout) this.windowView.findViewById(R.id.game_container);
-        frameLayout.removeAllViews();
-        frameLayout.addView(displayableView, new FrameLayout.LayoutParams(-1, -1));
+        // Chi remove/add khi view chua o trong game_container (tranh recreate SurfaceView gay do)
+        if (displayableView.getParent() != frameLayout) {
+            if (displayableView.getParent() != null) {
+                ((ViewGroup) displayableView.getParent()).removeView(displayableView);
+            }
+            frameLayout.removeAllViews();
+            frameLayout.addView(displayableView, new FrameLayout.LayoutParams(-1, -1));
+        }
         this.windowView.setVisibility(View.VISIBLE);
         this.floatingView.setVisibility(View.GONE);
         OverlayView overlayView = (OverlayView) this.windowView.findViewById(R.id.vOverlay);
