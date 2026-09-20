@@ -190,20 +190,34 @@ public class FloatingBubbleService extends Service {
     }
 
     private void hideFloatingWindow() {
-        Displayable currentDisplayable;
         Displayable.isFloatingMode = false;
         this.windowView.setVisibility(View.GONE);
         this.floatingView.setVisibility(View.VISIBLE);
         MicroActivity activity = ContextHolder.getActivity();
-        if (activity == null || (currentDisplayable = MidletThread.getCurrentDisplayable()) == null) {
-            return;
-        }
+        if (activity == null) return;
+
+        // Tra view ve dung slot container (khong phai displayable_container chung)
+        int focusedSlot = javax.microedition.shell.SlotRegistry.getFocusedSlot();
+        javax.microedition.shell.SlotSession session = javax.microedition.shell.SlotRegistry.get(focusedSlot);
+        Displayable currentDisplayable = session != null ? session.getCurrent() : MidletThread.getCurrentDisplayable();
+        if (currentDisplayable == null) return;
+
         currentDisplayable.clearDisplayableView();
         View displayableView = currentDisplayable.getDisplayableView();
-        FrameLayout frameLayout = (FrameLayout) activity.findViewById(R.id.displayable_container);
-        if (frameLayout != null) {
-            frameLayout.removeAllViews();
-            frameLayout.addView(displayableView);
+
+        // Xac dinh container dung: slot 0 dung layout chinh, slot 1+ dung SlotCell
+        FrameLayout targetContainer;
+        if (session != null && session.getContainer() != null) {
+            targetContainer = session.getContainer();
+        } else {
+            targetContainer = (FrameLayout) activity.findViewById(R.id.displayable_container);
+        }
+        if (targetContainer != null) {
+            if (displayableView.getParent() != null) {
+                ((ViewGroup) displayableView.getParent()).removeView(displayableView);
+            }
+            targetContainer.removeAllViews();
+            targetContainer.addView(displayableView);
         }
         if (currentDisplayable instanceof Canvas) {
             Canvas canvas = (Canvas) currentDisplayable;
