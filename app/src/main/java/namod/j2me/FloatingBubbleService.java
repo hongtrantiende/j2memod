@@ -297,9 +297,10 @@ public class FloatingBubbleService extends Service {
             displayableView.post(() -> updateCanvasLayout(frameLayout, overlayView, canvas, displayableView));
         } else {
             overlayView.setVisibility(View.GONE);
-            displayableView.setBackgroundColor(0);
-            frameLayout.setBackgroundColor(0);
-            this.windowView.setBackgroundColor(0);
+            // Nen DEN cho TextBox/Form/List — tranh nhin xuyen qua thay tab khac
+            displayableView.setBackgroundColor(0xFF263238);
+            frameLayout.setBackgroundColor(0xFF263238);
+            this.windowView.setBackgroundColor(0xFF263238);
             displayableView.setFocusable(true);
             displayableView.setFocusableInTouchMode(true);
             displayableView.requestFocus();

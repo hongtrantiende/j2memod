@@ -600,6 +600,13 @@ public class MicroActivity extends AppCompatActivity {
 			}
 			targetContainer.removeAllViews();
 			targetContainer.addView(displayableView);
+
+			// Non-Canvas (TextBox/Form/List): dat nen den de khong nhin xuyen qua thay slot khac
+			if (!(disp instanceof Canvas)) {
+				targetContainer.setBackgroundColor(0xFF000000);
+			} else {
+				targetContainer.setBackgroundColor(0x00000000);
+			}
 		}
 
 		// Chi update toolbar/actionbar cho focused slot
