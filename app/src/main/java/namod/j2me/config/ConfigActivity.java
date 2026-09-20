@@ -917,7 +917,20 @@ public class ConfigActivity extends BaseActivity implements View.OnClickListener
 		AlertDialog.Builder builder = new AlertDialog.Builder(this)
 				.setTitle(android.R.string.dialog_alert_title)
 				.setMessage(R.string.message_clear_data)
-				.setPositiveButton(android.R.string.ok, (d, w) -> FileUtils.clearDirectory(dataDir))
+				.setPositiveButton(android.R.string.ok, (d, w) -> {
+					// Xoa data slot 0
+					FileUtils.clearDirectory(dataDir);
+					// Xoa data cua tat ca multi-tab slots (data2, data3, ... data20)
+					String dirName = dataDir.getName();
+					String emulatorDir = Config.getEmulatorDir();
+					for (int i = 2; i <= 20; i++) {
+						java.io.File slotDataDir = new java.io.File(
+								emulatorDir + "/data" + i + "/" + dirName);
+						if (slotDataDir.exists()) {
+							FileUtils.clearDirectory(slotDataDir);
+						}
+					}
+				})
 				.setNegativeButton(android.R.string.cancel, null);
 		builder.show();
 	}
