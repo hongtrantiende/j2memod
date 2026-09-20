@@ -832,12 +832,12 @@ public abstract class Canvas extends Displayable {
 		if (act != null) isAppVisible = act.isVisible() || Displayable.isFloatingMode;
 
 		if (isBackgroundSlot) {
-			// Background slot: game loop van chay (bot danh + network) nhung toi uu toi da
-			// 2 FPS = game loop chay 2 lan/giay, du de bot hoat dong + nhan/gui network
-			// Khong render gi ca (flushBuffer return early khi !isShown)
-			if (!wasHidden) {
-				wasHidden = true;
-				// Xa cache hinh anh/font ngay — tab an khong can render, giai phong RAM
+			// Background slot: game loop van chay (bot + network) nhung toi uu toi da
+			// 2 FPS = game loop chay 2 lan/giay, khong render (flushBuffer return early)
+			// KHONG xoa cache o day — de chuyen tab muot ma, khong phai tai lai hinh
+			wasHidden = true;
+			if (!isAppVisible) {
+				// App an + tab nen: xoa cache de giai phong RAM toi da
 				try { Image.clearCache(); Font.clearCache(); System.gc(); } catch (Throwable ignored) {}
 			}
 			currentLimit = 2;
