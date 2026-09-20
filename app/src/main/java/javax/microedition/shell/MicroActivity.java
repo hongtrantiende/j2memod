@@ -334,6 +334,12 @@ public class MicroActivity extends AppCompatActivity {
 		refreshTabBar();
 	}
 
+	/** Public API cho FloatingBubbleService goi chuyen slot */
+	public void selectSlotFromBubble(int slotIndex) {
+		selectSlot(slotIndex);
+	}
+
+
 	/** An tat ca cell, chi hien cell cua focused slot */
 	private void showFocusedSlot() {
 		int focused = SlotRegistry.getFocusedSlot();
@@ -358,8 +364,8 @@ public class MicroActivity extends AppCompatActivity {
 		}
 	}
 
-	/** Them N slot moi */
-	private void addSlots(int count) {
+	/** Them N slot moi (public cho FloatingBubbleService) */
+	public void addSlots(int count) {
 		if (addingSlots) {
 			Toast.makeText(this, "Dang them slot...", Toast.LENGTH_SHORT).show();
 			return;

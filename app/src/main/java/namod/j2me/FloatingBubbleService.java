@@ -392,20 +392,31 @@ public class FloatingBubbleService extends Service {
     }
 
     /**
-     * Hien thi dialog "Mo nhieu man" - nhap so tab muon mo them.
-     * Tuong tu chuc nang cua ban jar ghep x20.
+     * Hien thi dialog "Mo nhieu man" - nhap so slot muon mo them.
+     * Dung SlotRegistry (multi-slot trong cung 1 Activity).
      */
     private void showAddTabDialog() {
         // Lay thong tin JAR dang chay tu MicroActivity hien tai
         MicroActivity act = ContextHolder.getActivity();
-        if (act != null) {
-            android.content.Intent i = act.getIntent();
-            currentAppName = i.getStringExtra(ConfigActivity.MIDLET_NAME_KEY);
-            if (currentAppName == null) currentAppName = "Game";
-            if (i.getData() != null) currentAppPath = i.getData().toString();
+        if (act == null) {
+            Toast.makeText(this, "Khong co Activity dang chay", Toast.LENGTH_SHORT).show();
+            return;
         }
+        android.content.Intent i = act.getIntent();
+        currentAppName = i.getStringExtra(ConfigActivity.MIDLET_NAME_KEY);
+        if (currentAppName == null) currentAppName = "Game";
+        if (i.getData() != null) currentAppPath = i.getData().toString();
+
         if (currentAppPath == null || currentAppPath.isEmpty()) {
             Toast.makeText(this, "Khong xac dinh duoc JAR dang chay", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        int currentSlots = javax.microedition.shell.SlotRegistry.count();
+        int maxSlots = 10;
+        int maxNew = maxSlots - currentSlots;
+        if (maxNew <= 0) {
+            Toast.makeText(this, "Da dat toi da " + maxSlots + " slot!", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -419,7 +430,7 @@ public class FloatingBubbleService extends Service {
         layout.setPadding(dpToPx(20), dpToPx(8), dpToPx(20), dpToPx(4));
 
         TextView desc = new TextView(themeCtx);
-        desc.setText("Nhap so man muon mo them (tong cong toi da " + (100 - TabManager.get().getTabCount()) + " man)");
+        desc.setText("Dang co " + currentSlots + " slot. Nhap so slot muon mo them (toi da " + maxNew + ")");
         desc.setTextSize(13f);
         layout.addView(desc);
 
@@ -437,19 +448,16 @@ public class FloatingBubbleService extends Service {
             int count;
             try { count = Integer.parseInt(val); } catch (NumberFormatException e) { return; }
             if (count <= 0) return;
-
-            int maxNew = 20 - TabManager.get().getTabCount();
             if (count > maxNew) count = maxNew;
 
-            // Mo count tab moi lien tiep, khong delay
+            // Mo slot moi qua MicroActivity.addSlots()
             final int finalCount = count;
-            final String name = currentAppName;
-            final String path = currentAppPath;
-            for (int idx = 0; idx < finalCount; idx++) {
-                int slot = TabManager.get().nextSlot();
-                Config.startNewTab(FloatingBubbleService.this, name, path, slot);
-            }
-            Toast.makeText(this, "Dang mo " + finalCount + " man moi...", Toast.LENGTH_SHORT).show();
+            act.runOnUiThread(() -> {
+                act.addSlots(finalCount);
+                Toast.makeText(this, "Dang mo " + finalCount + " slot moi...", Toast.LENGTH_SHORT).show();
+                // Cap nhat chips sau khi slot duoc tao
+                handler.postDelayed(this::updateSlotChips, 500);
+            });
         });
 
         AlertDialog dialog = builder.create();
@@ -464,11 +472,11 @@ public class FloatingBubbleService extends Service {
     }
 
     /**
-     * Cap nhat chip tab [1][2][3]... trong hang HorizontalScrollView.
-     * Moi chip khi tap se chuyen sang tab do.
+     * Cap nhat chip tab [1][2][3]... tu SlotRegistry (multi-slot).
+     * Moi chip khi tap se chuyen focused slot.
      */
     @SuppressLint("SetTextI18n")
-    private void updateTabChips(java.util.List<TabManager.GameTab> tabs) {
+    private void updateSlotChips() {
         if (this.windowView == null) return;
         View scrollView = this.windowView.findViewById(R.id.tab_chip_scroll);
         LinearLayout chipRow = this.windowView.findViewById(R.id.tab_chip_row);
@@ -476,16 +484,17 @@ public class FloatingBubbleService extends Service {
 
         chipRow.removeAllViews();
 
-        if (tabs.size() <= 1) {
+        java.util.Collection<javax.microedition.shell.SlotSession> slots = javax.microedition.shell.SlotRegistry.all();
+        if (slots.size() <= 1) {
             scrollView.setVisibility(View.GONE);
             return;
         }
 
         scrollView.setVisibility(View.VISIBLE);
-        for (int i = 0; i < tabs.size(); i++) {
-            TabManager.GameTab tab = tabs.get(i);
+        int focusedSlot = javax.microedition.shell.SlotRegistry.getFocusedSlot();
+        for (javax.microedition.shell.SlotSession session : slots) {
             TextView chip = new TextView(this);
-            chip.setText("" + (i + 1));
+            chip.setText("" + (session.slot + 1));
             chip.setTextColor(0xFFFFFFFF);
             chip.setTextSize(11f);
             chip.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -494,8 +503,14 @@ public class FloatingBubbleService extends Service {
 
             GradientDrawable bg = new GradientDrawable();
             bg.setCornerRadius(dpToPx(10));
-            bg.setColor(0x4400E5FF);
-            bg.setStroke(1, 0x8800E5FF);
+            if (session.slot == focusedSlot) {
+                // Slot dang focus: highlight
+                bg.setColor(0x9900E5FF);
+                bg.setStroke(dpToPx(1), 0xFF00E5FF);
+            } else {
+                bg.setColor(0x4400E5FF);
+                bg.setStroke(1, 0x8800E5FF);
+            }
             chip.setBackground(bg);
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -506,8 +521,17 @@ public class FloatingBubbleService extends Service {
             lp.setMarginEnd(dpToPx(3));
             chip.setLayoutParams(lp);
 
-            final int taskId = tab.taskId;
-            chip.setOnClickListener(v -> TabManager.get().switchToTab(FloatingBubbleService.this, taskId));
+            final int slotIndex = session.slot;
+            chip.setOnClickListener(v -> {
+                MicroActivity activity = ContextHolder.getActivity();
+                if (activity != null) {
+                    activity.runOnUiThread(() -> {
+                        activity.selectSlotFromBubble(slotIndex);
+                        // Cap nhat lai chips sau khi chuyen slot
+                        handler.postDelayed(this::updateSlotChips, 200);
+                    });
+                }
+            });
             chipRow.addView(chip);
         }
     }
@@ -577,9 +601,8 @@ public class FloatingBubbleService extends Service {
         }
 
         // Dang ky listener cap nhat chip tab
-        TabManager.get().addListener(tabs -> handler.post(() -> updateTabChips(tabs)));
         // Hien thi chips ngay lan dau
-        updateTabChips(TabManager.get().getTabs());
+        updateSlotChips();
 
         moveHandle.setOnTouchListener(new View.OnTouchListener() {
             private float initialTouchX;
