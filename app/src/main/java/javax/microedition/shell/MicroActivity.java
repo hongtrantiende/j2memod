@@ -220,28 +220,8 @@ public class MicroActivity extends AppCompatActivity {
 			dataDir = base + "/data" + (slotIndex + 1) + "/";
 			java.io.File dir = new java.io.File(dataDir);
 			if (!dir.exists()) dir.mkdirs();
-
-			// Kiem tra xem game RMS da co chua (subfolder ten game trong data dir)
-			// Neu chua co -> copy tu slot 0 de co config co ban (server, ngon ngu...)
-			boolean needsCopy = true;
-			String slot0DataDir = Config.getEmulatorDir() + "/data/";
-			java.io.File slot0Dir = new java.io.File(slot0DataDir);
-			if (slot0Dir.exists() && slot0Dir.isDirectory()) {
-				java.io.File[] gameFolders = slot0Dir.listFiles(java.io.File::isDirectory);
-				if (gameFolders != null) {
-					for (java.io.File gameFolder : gameFolders) {
-						java.io.File targetGameFolder = new java.io.File(dir, gameFolder.getName());
-						if (targetGameFolder.exists() && targetGameFolder.list() != null
-								&& targetGameFolder.list().length > 0) {
-							needsCopy = false; // Da co RMS data rieng
-							break;
-						}
-					}
-				}
-			}
-			if (needsCopy) {
-				copyRmsData(slot0DataDir, dataDir);
-			}
+			// Tab moi = du lieu moi hoan toan (khong copy tu tab 1)
+			// Game se tu setup lan dau (chon server, ngon ngu...)
 		}
 
 		// Tao session
