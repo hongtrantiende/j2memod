@@ -219,7 +219,13 @@ public class MicroActivity extends AppCompatActivity {
 			String base = Config.getEmulatorDir();
 			dataDir = base + "/data" + (slotIndex + 1) + "/";
 			java.io.File dir = new java.io.File(dataDir);
-			if (!dir.exists()) dir.mkdirs();
+			boolean isFirstTime = !dir.exists();
+			if (isFirstTime) dir.mkdirs();
+			// Lan dau tao tab: copy config co ban tu slot 0 (server, ngon ngu...)
+			// Lan sau: data rieng cua tab nay da co -> KHONG ghi de
+			if (isFirstTime) {
+				copyRmsData(Config.getDataDir(), dataDir);
+			}
 		}
 
 		// Tao session
