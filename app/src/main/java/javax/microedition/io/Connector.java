@@ -123,6 +123,7 @@ public class Connector {
 
 	public static Connection open(String name) throws IOException {
 		String redirected = redirectUrl(name);
+		Log.i(TAG, "[Thread " + Thread.currentThread().getName() + "] Connector.open: " + redirected);
 		return ImplFactory.getCGFImplementation(redirected).open(redirected);
 	}
 

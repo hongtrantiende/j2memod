@@ -241,10 +241,16 @@ public class MicroActivity extends AppCompatActivity {
 		// Set data dir cho slot nay
 		Config.setSlotIndex(slotIndex);
 
-		// Dung lai microLoader (cung appPath, cung config)
-		// loadMIDlet se tao classloader RIENG per slot
-		session.microLoader = microLoader;
-		MicroLoader loader = microLoader;
+		// === NST pattern: tao MicroLoader MOI cho moi slot ===
+		// Moi slot can init() + applyConfiguration() rieng de co
+		// Display rieng, properties rieng, network setup rieng
+		MicroLoader loader = new MicroLoader(this, path);
+		if (!loader.init()) {
+			showErrorDialog("init() thất bại cho slot " + slotIndex);
+			return;
+		}
+		loader.applyConfiguration();
+		session.microLoader = loader;
 
 		// Load MIDlet
 		try {
@@ -258,6 +264,8 @@ public class MicroActivity extends AppCompatActivity {
 			showErrorDialog(e.toString());
 		}
 
+		// Sau khi launch xong, bind lai focused session
+		SlotRegistry.bind(SlotRegistry.focused());
 		showFocusedSlot();
 		refreshTabBar();
 	}
