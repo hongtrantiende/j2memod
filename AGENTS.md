@@ -171,9 +171,10 @@ git push origin main:master
 8. **VirtualKeyboard NPE khi chạm màn hình (Multi-Tab):**
    * *Nguyên nhân:* `applyConfiguration()` tạo VK mới nhưng chưa gọi `vk.setView(overlayView)`. Khi user chạm → `VK.repaint()` → `overlayView.postInvalidate()` → NPE crash.
    * *Giải pháp:* Sau `applyConfiguration()` cho slot mới, gọi `vk.setView(findViewById(R.id.vOverlay))`. Thêm null check trong `repaint()`.
-9. **Tab mới không đăng nhập được game (Multi-Tab):**
-   * *Nguyên nhân:* Data dir trống (không có RMS config cơ bản: ngôn ngữ, server settings...). Game cần những file này để khởi tạo đúng.
-   * *Giải pháp:* Lần đầu tạo tab (`isFirstTime = !dir.exists()`), copy toàn bộ RMS từ slot 0. Lần sau giữ data riêng.
+9. **Tab mới = dữ liệu mới hoàn toàn (Multi-Tab):**
+   * Tab mới **KHÔNG copy RMS từ tab 1**. Mỗi tab bắt đầu với data trống, game tự hiện setup lần đầu (chọn server, ngôn ngữ, đăng nhập/đăng ký).
+   * Thư mục data: slot 0 → `/data/`, slot 1 → `/data2/`, slot 2 → `/data3/`...
+   * **Quan trọng:** `ContextHolder.getFileByName()` phải tự tạo thư mục parent (`parent.mkdirs()`) khi chưa tồn tại, nếu không game sẽ crash `FileNotFoundException` khi cố lưu RMS lần đầu.
 10. **Event routing sai khi click nút trên UI thread (Floating Bubble):**
     * *Nguyên nhân:* `Displayable.menuItemSelected()` gọi `Display.postEvent()` → dùng `SlotRegistry.current()` (ThreadLocal). Nút OK/Cancel trong FloatingBubbleService click trên **UI thread** không có slot binding → event đi vào **fallback static queue** → game không bao giờ nhận command → TextBox/List kẹt vĩnh viễn.
     * *Giải pháp:* Trong `menuItemSelected()`, fallback sang `SlotRegistry.focused()` khi `SlotRegistry.current()` trả `null`.
