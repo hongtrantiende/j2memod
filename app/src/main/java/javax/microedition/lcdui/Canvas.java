@@ -822,13 +822,16 @@ public abstract class Canvas extends Displayable {
 		if (session != null) mySlot = session.slot;
 		boolean isBackgroundSlot = isMultiSlot && mySlot >= 0
 				&& mySlot != SlotRegistry.getFocusedSlot();
+		boolean isFocusedSlot = isMultiSlot && mySlot >= 0
+				&& mySlot == SlotRegistry.getFocusedSlot();
 
 		if (isBackgroundSlot) {
 			// Tab nen trong multi-slot: chay 15 FPS (du de game loop khong do)
 			// KHONG xoa cache (chi can throttle nhe)
 			currentLimit = 15;
-		} else if (!isShown()) {
+		} else if (!isFocusedSlot && !isShown()) {
 			// App bi an hoan toan (minimize, tat man hinh...)
+			// CHI khi KHONG phai focused slot (focused slot luon chay full FPS)
 			if (!wasHidden) {
 				wasHidden = true;
 				try {

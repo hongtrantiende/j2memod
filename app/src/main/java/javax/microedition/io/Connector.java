@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import javax.microedition.shell.SlotSession;
 import javax.microedition.util.ContextHolder;
 
 public class Connector {
@@ -123,8 +124,17 @@ public class Connector {
 
 	public static Connection open(String name) throws IOException {
 		String redirected = redirectUrl(name);
-		Log.i(TAG, "[Thread " + Thread.currentThread().getName() + "] Connector.open: " + redirected);
-		return ImplFactory.getCGFImplementation(redirected).open(redirected);
+		SlotSession session = javax.microedition.shell.SlotRegistry.current();
+		int slotId = session != null ? session.slot : -1;
+		Log.i(TAG, "[Slot " + slotId + " Thread " + Thread.currentThread().getName() + "] Connector.open: " + redirected);
+		try {
+			Connection conn = ImplFactory.getCGFImplementation(redirected).open(redirected);
+			Log.i(TAG, "[Slot " + slotId + "] Connector.open SUCCESS: " + redirected);
+			return conn;
+		} catch (IOException e) {
+			Log.e(TAG, "[Slot " + slotId + "] Connector.open FAILED: " + redirected + " -> " + e.getMessage());
+			throw e;
+		}
 	}
 
 	public static Connection open(String name, int mode) throws IOException {
