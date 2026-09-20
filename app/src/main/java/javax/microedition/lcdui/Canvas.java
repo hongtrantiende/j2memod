@@ -825,23 +825,33 @@ public abstract class Canvas extends Displayable {
 		boolean isFocusedSlot = isMultiSlot && mySlot >= 0
 				&& mySlot == SlotRegistry.getFocusedSlot();
 
+		// Kiem tra app co dang hien thi hay bi an (minimize/tat man hinh)
+		boolean isAppVisible = true;
+		MicroActivity act = javax.microedition.util.ContextHolder.getActivity();
+		if (act != null) isAppVisible = act.isVisible();
+
 		if (isBackgroundSlot) {
-			// Tab nen trong multi-slot: chay 15 FPS (du de game loop khong do)
-			// KHONG xoa cache (chi can throttle nhe)
-			currentLimit = 15;
-		} else if (!isFocusedSlot && !isShown()) {
-			// App bi an hoan toan (minimize, tat man hinh...)
-			// CHI khi KHONG phai focused slot (focused slot luon chay full FPS)
+			if (!isAppVisible) {
+				// App an + tab nen: chay cuc cham de tiet kiem CPU
+				if (!wasHidden) {
+					wasHidden = true;
+					try { Image.clearCache(); Font.clearCache(); System.gc(); } catch (Throwable ignored) {}
+				}
+				currentLimit = sleepTab ? 3 : 5;
+			} else {
+				// App hien thi + tab nen: 15 FPS (du de game loop khong do)
+				wasHidden = false;
+				currentLimit = 15;
+			}
+		} else if (!isAppVisible) {
+			// App an + focused slot hoac single-slot: tiet kiem nhung van chay
 			if (!wasHidden) {
 				wasHidden = true;
-				try {
-					Image.clearCache();
-					Font.clearCache();
-					System.gc();
-				} catch (Throwable ignored) {}
+				try { Image.clearCache(); Font.clearCache(); System.gc(); } catch (Throwable ignored) {}
 			}
 			currentLimit = sleepTab ? 3 : 5;
 		} else {
+			// App hien thi + focused slot: chay full FPS
 			wasHidden = false;
 			if (autoSleep && autoSleeping) {
 				if (!wasAutoSleeping) {
