@@ -826,9 +826,10 @@ public abstract class Canvas extends Displayable {
 				&& mySlot == SlotRegistry.getFocusedSlot();
 
 		// Kiem tra app co dang hien thi hay bi an (minimize/tat man hinh)
+		// Floating mode (bong bong chat) van tinh la "hien thi"
 		boolean isAppVisible = true;
 		MicroActivity act = javax.microedition.util.ContextHolder.getActivity();
-		if (act != null) isAppVisible = act.isVisible();
+		if (act != null) isAppVisible = act.isVisible() || Displayable.isFloatingMode;
 
 		if (isBackgroundSlot) {
 			if (!isAppVisible) {
