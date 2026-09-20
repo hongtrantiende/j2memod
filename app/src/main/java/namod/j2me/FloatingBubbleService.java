@@ -196,34 +196,50 @@ public class FloatingBubbleService extends Service {
         MicroActivity activity = ContextHolder.getActivity();
         if (activity == null) return;
 
-        // Tra view ve dung slot container (khong phai displayable_container chung)
+        // Lay game_container cua floating window de tra view ve Activity
+        FrameLayout floatingContainer = (FrameLayout) this.windowView.findViewById(R.id.game_container);
+        if (floatingContainer != null) {
+            floatingContainer.removeAllViews();
+        }
+
+        // Tra tat ca slot ve dung container trong Activity
+        java.util.ArrayList<javax.microedition.shell.SlotSession> allSessions =
+                javax.microedition.shell.SlotRegistry.all();
         int focusedSlot = javax.microedition.shell.SlotRegistry.getFocusedSlot();
-        javax.microedition.shell.SlotSession session = javax.microedition.shell.SlotRegistry.get(focusedSlot);
-        Displayable currentDisplayable = session != null ? session.getCurrent() : MidletThread.getCurrentDisplayable();
-        if (currentDisplayable == null) return;
 
-        currentDisplayable.clearDisplayableView();
-        View displayableView = currentDisplayable.getDisplayableView();
+        for (javax.microedition.shell.SlotSession session : allSessions) {
+            Displayable disp = session.getCurrent();
+            if (disp == null) continue;
 
-        // Xac dinh container dung: slot 0 dung layout chinh, slot 1+ dung SlotCell
-        FrameLayout targetContainer;
-        if (session != null && session.getContainer() != null) {
-            targetContainer = session.getContainer();
-        } else {
-            targetContainer = (FrameLayout) activity.findViewById(R.id.displayable_container);
-        }
-        if (targetContainer != null) {
-            if (displayableView.getParent() != null) {
-                ((ViewGroup) displayableView.getParent()).removeView(displayableView);
+            // KHONG goi clearDisplayableView() — giu nguyen view, khong tao lai SurfaceView
+            View displayableView = disp.getDisplayableView();
+            if (displayableView == null) continue;
+
+            // Xac dinh container dung cho slot nay
+            FrameLayout targetContainer;
+            if (session.getContainer() != null) {
+                targetContainer = session.getContainer();
+            } else {
+                targetContainer = (FrameLayout) activity.findViewById(R.id.displayable_container);
             }
-            targetContainer.removeAllViews();
-            targetContainer.addView(displayableView);
-        }
-        if (currentDisplayable instanceof Canvas) {
-            Canvas canvas = (Canvas) currentDisplayable;
-            canvas.setOverlayView((OverlayView) activity.findViewById(R.id.vOverlay));
-            canvas.updateSize();
-            canvas.repaint();
+            if (targetContainer == null) continue;
+
+            // Di chuyen view ve container dung (khong tao lai)
+            if (displayableView.getParent() != targetContainer) {
+                if (displayableView.getParent() != null) {
+                    ((ViewGroup) displayableView.getParent()).removeView(displayableView);
+                }
+                targetContainer.removeAllViews();
+                targetContainer.addView(displayableView);
+            }
+
+            // Chi repaint Canvas cua focused slot
+            if (session.slot == focusedSlot && disp instanceof Canvas) {
+                Canvas canvas = (Canvas) disp;
+                canvas.setOverlayView((OverlayView) activity.findViewById(R.id.vOverlay));
+                canvas.updateSize();
+                canvas.repaint();
+            }
         }
     }
 
