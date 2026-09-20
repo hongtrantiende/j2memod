@@ -90,6 +90,60 @@ git push origin main:master
 * **Tệp:** [`app/src/main/java/namod/j2me/FloatingBubbleService.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/namod/j2me/FloatingBubbleService.java)
   * Điều khiển bong bóng nổi (Floating Bubble) và cửa sổ game mini.
   * Nút `btn_tab_menu`: Tự động gửi phím `*` (KEY_STAR) để mở Menu danh sách Tab trong game mod Ninja School / J2ME bots.
+  * Thiết kế: Header gradient Dark Glassmorphism, nút Tab dạng viên thuốc (Pill) xanh ngọc, nút kéo grip handle hiện đại.
+
+### 3.6. Bảng Điều Khiển Log (Log Console & Tự Động Dọn Dẹp)
+* **Tệp:** [`app/src/main/java/namod/j2me/util/ConsoleOutput.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/namod/j2me/util/ConsoleOutput.java)
+  * **Cơ chế tự động dọn (Rolling Trim):** Giới hạn cứng `MAX_LOG_SIZE = 30000` (khoảng 30KB ký tự). Khi log vượt quá 30.000 ký tự, hệ thống **tự động cắt bỏ các dòng log cũ nhất** (`sb.delete(0, sb.length() - MAX_LOG_SIZE)`), bảo đảm bộ đệm log không bao giờ phình to gây tràn RAM.
+  * **Tự động làm sạch khi thoát/mở:** Được gọi `ConsoleOutput.clear()` tại `EmulatorApplication.attachBaseContext()` và `MicroActivity.onDestroy()`.
+* **Tệp:** [`app/src/main/java/namod/j2me/util/LogConsoleDialogFragment.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/namod/j2me/util/LogConsoleDialogFragment.java)
+  * Cung cấp nút "Xóa" (Clear) để người dùng chủ động xóa trắng log bất cứ lúc nào.
+
+### 3.7. Thiết Kế Giao Diện & Trải Nghiệm Mượt Mà (UI/UX)
+* **Danh sách game:** Dạng thẻ Card bo góc 12dp (`bg_card_jar.xml`), icon game bo viền 10dp (`bg_game_icon.xml`), hiệu ứng phản hồi chạm Ripple mượt mà.
+* **Cửa sổ nổi & Tab:** Header 38dp tông màu xám kim loại sang trọng (`bg_floating_header.xml`), nút TAB dạng viên thuốc Gradient (`bg_tab_pill.xml`), icon bong bóng tròn viền phát sáng (`bubble_background.xml`).
+* **Hiệu năng giao diện:** Không sử dụng divider thô cứng, padding tối ưu để không bị che khuất bởi nút FAB, loại bỏ overdraw thừa.
+
+### 3.8. Multi-Tab (Multi-Slot Architecture — Theo Kiến Trúc NST)
+* **Tham chiếu:** [`J2ME_NST_src/sources/`](file:///c:/Users/Admin/Documents/j2me/J2ME_NST_src/sources/) — mã nguồn decompile của J2ME NST làm tham khảo kiến trúc multi-slot.
+* **Kiến trúc tổng quan:**
+  * **`SlotSession`:** Mỗi tab game = 1 `SlotSession` chứa: `Display` riêng, `EventQueue` riêng, `MicroLoader` riêng, `MidletThread` riêng, `Displayable current`, `container (SlotCell)`, `dataDir`.
+  * **`SlotRegistry`:** Quản lý tất cả `SlotSession` qua `InheritableThreadLocal`. Mỗi thread (game thread, networking thread) kế thừa session binding từ thread cha.
+  * **`SlotCell`:** `FrameLayout` riêng cho mỗi slot 1+, chứa Canvas/View của game slot đó.
+
+#### 3.8.1. Khởi tạo Slot (launchSlot)
+* **Tệp:** [`MicroActivity.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/javax/microedition/shell/MicroActivity.java)
+* **Slot 0:** Dùng `microLoader` đã tạo sẵn trong `onCreate()` (đã `init()` + `applyConfiguration()` rồi). **KHÔNG tạo MicroLoader mới** — tránh double init gây màn đen.
+* **Slot 1+:** Tạo `MicroLoader` MỚI → `init()` → `applyConfiguration()` → set `VirtualKeyboard.setView(overlayView)` → `MidletThread.create()`.
+* **Data Directory:**
+  * Slot 0: `/J2ME-Loader/data/` (mặc định)
+  * Slot 1: `/J2ME-Loader/data2/`
+  * Slot 2: `/J2ME-Loader/data3/`
+  * **Lần đầu tạo:** Copy RMS data từ slot 0 (`copyRmsData`) để có config cơ bản (ngôn ngữ, server...). **Lần sau:** Giữ nguyên data riêng của slot.
+
+#### 3.8.2. MidletThread Per-Slot
+* **Tệp:** [`MidletThread.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/javax/microedition/shell/MidletThread.java)
+* Mỗi slot có 1 `MidletThread` (`HandlerThread`) riêng, tên `MidletMain-{slot}`.
+* **Quan trọng:** Trong `handleMessage()`, luôn gọi `SlotRegistry.bind(session)` ĐẦU TIÊN trước khi xử lý message.
+* Child threads (networking, game logic) kế thừa session binding qua `InheritableThreadLocal`.
+
+#### 3.8.3. Display Per-Slot
+* **Tệp:** [`Display.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/javax/microedition/lcdui/Display.java)
+* Mỗi `SlotSession` sở hữu 1 `Display` instance riêng.
+* `Display.getDisplay()` lấy Display từ `SlotRegistry.current().getDisplay()` thay vì static singleton.
+* `Display.postEvent()` gửi event vào `session.eventQueue()` thay vì global EventQueue.
+
+#### 3.8.4. Canvas FPS Throttling (Multi-Slot)
+* **Tệp:** [`Canvas.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/javax/microedition/lcdui/Canvas.java) — hàm `limitFps()`
+* **Focused slot:** Luôn chạy **full FPS** (60 FPS), bất kể `isShown()` trả gì. Lý do: Canvas chưa attach vào View hierarchy nhưng game cần chạy mượt.
+* **Background slot (tab nền):** Giới hạn **15 FPS** — đủ để game loop không đơ, nhưng tiết kiệm CPU.
+* **App bị ẩn hoàn toàn:** Giới hạn **3-5 FPS** + xóa cache Image/Font.
+* **Thứ tự ưu tiên:** `isBackgroundSlot` → `!isFocusedSlot && !isShown()` → bình thường.
+
+#### 3.8.5. VirtualKeyboard Null Safety
+* **Tệp:** [`VirtualKeyboard.java`](file:///c:/Users/Admin/Documents/j2me/J2MELoader-namod/app/src/main/java/javax/microedition/lcdui/pointer/VirtualKeyboard.java)
+* `repaint()` phải kiểm tra `if (overlayView != null)` trước khi gọi `postInvalidate()`.
+* Khi tạo slot mới, sau `applyConfiguration()` phải gọi `vk.setView(overlayView)` để gán OverlayView cho VK.
 
 ---
 
@@ -108,3 +162,29 @@ git push origin main:master
    * Mọi hàm khởi tạo `Bitmap.createBitmap` lớn đều phải có khối `try-catch (OutOfMemoryError)` để giải phóng bộ nhớ tạm thời trước khi thử lại lần 2.
 5. **Chế độ Treo Máy (AFK Mode):**
    * Người dùng treo máy trực tiếp thông qua màn hình danh sách Tab của game mod hoặc ẩn ứng dụng vào nền. **Không thêm lại màn hình đen phủ overlay (AFK Mode cũ)** vì gây khó chịu và dư thừa.
+6. **Double Init gây màn đen (Multi-Tab):**
+   * *Nguyên nhân:* Gọi `MicroLoader.init()` + `applyConfiguration()` 2 lần cho slot 0 (1 lần trong `onCreate()`, 1 lần trong `launchSlot()`). `init()` reset Display/Graphics3D → Canvas bị mất reference → màn đen.
+   * *Giải pháp:* Slot 0 dùng `microLoader` đã tạo trong `onCreate()`. Chỉ slot 1+ mới tạo MicroLoader mới.
+7. **Focused Slot bị throttle FPS (Multi-Tab):**
+   * *Nguyên nhân:* Slot mới vừa tạo, Canvas chưa attach vào View hierarchy → `View.isShown()` trả `false` → `limitFps()` throttle về 3 FPS → game lag đơ, network timeout, đăng nhập thất bại.
+   * *Giải pháp:* Trong `limitFps()`, kiểm tra `isFocusedSlot` — nếu đúng thì KHÔNG throttle, luôn chạy full FPS.
+8. **VirtualKeyboard NPE khi chạm màn hình (Multi-Tab):**
+   * *Nguyên nhân:* `applyConfiguration()` tạo VK mới nhưng chưa gọi `vk.setView(overlayView)`. Khi user chạm → `VK.repaint()` → `overlayView.postInvalidate()` → NPE crash.
+   * *Giải pháp:* Sau `applyConfiguration()` cho slot mới, gọi `vk.setView(findViewById(R.id.vOverlay))`. Thêm null check trong `repaint()`.
+9. **Tab mới không đăng nhập được game (Multi-Tab):**
+   * *Nguyên nhân:* Data dir trống (không có RMS config cơ bản: ngôn ngữ, server settings...). Game cần những file này để khởi tạo đúng.
+   * *Giải pháp:* Lần đầu tạo tab (`isFirstTime = !dir.exists()`), copy toàn bộ RMS từ slot 0. Lần sau giữ data riêng.
+10. **Event routing sai khi click nút trên UI thread (Floating Bubble):**
+    * *Nguyên nhân:* `Displayable.menuItemSelected()` gọi `Display.postEvent()` → dùng `SlotRegistry.current()` (ThreadLocal). Nút OK/Cancel trong FloatingBubbleService click trên **UI thread** không có slot binding → event đi vào **fallback static queue** → game không bao giờ nhận command → TextBox/List kẹt vĩnh viễn.
+    * *Giải pháp:* Trong `menuItemSelected()`, fallback sang `SlotRegistry.focused()` khi `SlotRegistry.current()` trả `null`.
+11. **TextBox/Form nền trong suốt nhìn xuyên thấy slot khác (Multi-Tab):**
+    * *Nguyên nhân:* Slot 1+ dùng `SlotCell` (FrameLayout) nằm trên `layout` chứa slot 0's Canvas. TextBox/Form có background trong suốt → nhìn xuyên qua → thấy game tab 1 phía dưới.
+    * *Giải pháp:* Trong `applySetCurrent()`, khi displayable KHÔNG phải Canvas: `targetContainer.setBackgroundColor(0xFF000000)`. Khi Canvas: reset về `0x00000000`.
+    * *Floating mode:* Tương tự trong `performUpdateDisplayable()`: set `0xFF263238` cho non-Canvas.
+12. **Floating Bubble bị throttle FPS (limitFps):**
+    * *Nguyên nhân:* `MicroActivity.onPause()` → `visible = false`. `limitFps()` kiểm tra `act.isVisible()` → `false` → throttle tất cả slot xuống 3-5 FPS → lag trong floating bubble.
+    * *Giải pháp:* `isAppVisible = act.isVisible() || Displayable.isFloatingMode`. Floating mode = app vẫn "hiển thị".
+13. **Floating Bubble chuyển slot cần ACTION_UPDATE_DISPLAYABLE:**
+    * *Nguyên nhân:* `selectSlot()` chỉ thay đổi visibility SlotCell trong Activity layout. Floating window có `game_container` riêng, không tự cập nhật.
+    * *Giải pháp:* Sau `selectSlot()`, gửi Intent `ACTION_UPDATE_DISPLAYABLE` với `slot_index` extra để FloatingBubbleService lấy đúng displayable từ đúng session.
+    * `performUpdateDisplayable(slotIndex)`: nếu `slotIndex >= 0`, lấy displayable từ `SlotRegistry.get(slotIndex).getCurrent()` thay vì `MidletThread.getCurrentDisplayable()`.
