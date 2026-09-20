@@ -620,12 +620,16 @@ public class MicroActivity extends AppCompatActivity {
 				} else {
 					actionBar.hide();
 				}
+				// Hien tab bar khi Canvas
+				if (slotTabBar != null) slotTabBar.setVisibility(View.VISIBLE);
 			} else {
 				showSystemUI();
 				actionBar.show();
 				final String title = disp.getTitle();
 				actionBar.setTitle(title == null ? appName : title);
 				layoutParams.height = getToolBarHeight();
+				// An tab bar khi hien danh sach tab/TextBox/Form cua game
+				if (slotTabBar != null) slotTabBar.setVisibility(View.GONE);
 			}
 			toolbar.setLayoutParams(layoutParams);
 		}
