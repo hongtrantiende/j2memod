@@ -254,6 +254,12 @@ public class MicroActivity extends AppCompatActivity {
 				return;
 			}
 			loader.applyConfiguration();
+			// Set overlayView cho VK cua slot moi (chia se overlayView chung)
+			VirtualKeyboard vk = ContextHolder.getVk();
+			OverlayView overlay = findViewById(R.id.vOverlay);
+			if (vk != null && overlay != null) {
+				vk.setView(overlay);
+			}
 		}
 		session.microLoader = loader;
 

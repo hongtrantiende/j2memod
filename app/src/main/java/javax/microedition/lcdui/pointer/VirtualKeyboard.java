@@ -802,7 +802,9 @@ public class VirtualKeyboard implements Overlay, Runnable {
 	}
 
 	protected void repaint() {
-		overlayView.postInvalidate();
+		if (overlayView != null) {
+			overlayView.postInvalidate();
+		}
 	}
 
 	/**
