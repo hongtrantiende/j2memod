@@ -21,10 +21,17 @@ import javax.microedition.lcdui.event.Event;
 import javax.microedition.lcdui.event.EventQueue;
 import javax.microedition.lcdui.event.RunnableEvent;
 import javax.microedition.midlet.MIDlet;
+import javax.microedition.shell.SlotRegistry;
+import javax.microedition.shell.SlotSession;
 import javax.microedition.util.ContextHolder;
 
 import androidx.appcompat.app.AlertDialog;
 
+/**
+ * Display - theo kien truc NST:
+ * Moi SlotSession co Display RIENG (khong con singleton global)
+ * Moi SlotSession co EventQueue RIENG
+ */
 @SuppressWarnings("unused")
 public class Display {
 	public static final int LIST_ELEMENT = 1;
@@ -48,9 +55,11 @@ public class Display {
 					0xFF000080
 			};
 
+	/** Fallback instance khi khong co SlotSession (single-slot mode) */
 	private static Display instance;
 	private static boolean multiTouchSupported;
 	private static String pointerNumber;
+	/** Fallback EventQueue khi khong co SlotSession */
 	static EventQueue queue = new EventQueue();
 
 	static {
@@ -58,16 +67,41 @@ public class Display {
 	}
 
 	private Displayable current;
+	/** Session so huu Display nay (null = legacy/single-slot) */
+	private final SlotSession ownerSession;
 
+	private Display(SlotSession session) {
+		this.ownerSession = session;
+	}
+
+	/**
+	 * NST pattern: moi slot co Display rieng.
+	 * getDisplay(midlet) tra Display cua slot hien tai (tu SlotRegistry.current()).
+	 * Neu khong co session (single-slot), dung fallback static instance.
+	 */
 	public static Display getDisplay(MIDlet midlet) {
-		if (instance == null && midlet != null) {
-			String nokiaUiEnhancement = midlet.getAppProperty("Nokia-UI-Enhancement");
-			if (nokiaUiEnhancement != null) {
-				multiTouchSupported = nokiaUiEnhancement.contains("EnableMultiPointTouchEvents");
+		SlotSession session = SlotRegistry.current();
+		if (session != null) {
+			// Multi-slot: moi session co Display rieng
+			if (session.getDisplay() == null && midlet != null) {
+				applyNokiaUi(midlet);
+				session.setDisplay(new Display(session));
 			}
-			instance = new Display();
+			return session.getDisplay();
+		}
+		// Fallback: single-slot
+		if (instance == null && midlet != null) {
+			applyNokiaUi(midlet);
+			instance = new Display(null);
 		}
 		return instance;
+	}
+
+	private static void applyNokiaUi(MIDlet midlet) {
+		String nokiaUiEnhancement = midlet.getAppProperty("Nokia-UI-Enhancement");
+		if (nokiaUiEnhancement != null) {
+			multiTouchSupported = nokiaUiEnhancement.contains("EnableMultiPointTouchEvents");
+		}
 	}
 
 	public static boolean isMultiTouchSupported() {
@@ -86,19 +120,27 @@ public class Display {
 		return pointerNumber;
 	}
 
-	private Display() {
-	}
-
 	public static void initDisplay() {
 		instance = null;
+		SlotSession session = SlotRegistry.current();
+		if (session != null) {
+			session.setDisplay(null);
+		}
 	}
 
+	/**
+	 * NST pattern: postEvent dung EventQueue cua slot hien tai.
+	 */
 	public static void postEvent(Event event) {
-		queue.postEvent(event);
+		getEventQueue().postEvent(event);
 	}
 
+	/**
+	 * NST pattern: EventQueue per-slot.
+	 */
 	static EventQueue getEventQueue() {
-		return queue;
+		SlotSession session = SlotRegistry.current();
+		return session != null ? session.eventQueue() : queue;
 	}
 
 	public void setCurrent(Displayable disp) {
@@ -145,8 +187,12 @@ public class Display {
 		current = disp;
 	}
 
+	/**
+	 * NST pattern: truyen ownerSession truc tiep cho MicroActivity.setCurrent
+	 * de tranh race condition voi ThreadLocal.
+	 */
 	private void showCurrent() {
-		ContextHolder.getActivity().setCurrent(current);
+		ContextHolder.getActivity().setCurrent(ownerSession, current);
 	}
 
 	public Displayable getCurrent() {
@@ -154,7 +200,9 @@ public class Display {
 	}
 
 	public void callSerially(Runnable r) {
-		postEvent(RunnableEvent.getInstance(r));
+		// Dung EventQueue cua slot so huu Display nay
+		EventQueue eq = ownerSession != null ? ownerSession.eventQueue() : getEventQueue();
+		eq.postEvent(RunnableEvent.getInstance(r));
 	}
 
 	public boolean flashBacklight(int duration) {

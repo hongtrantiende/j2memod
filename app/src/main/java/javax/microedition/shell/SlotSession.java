@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
+import javax.microedition.lcdui.event.EventQueue;
 import javax.microedition.rms.impl.AndroidRecordStoreManager;
 
 public final class SlotSession {
@@ -36,6 +37,7 @@ public final class SlotSession {
     Map<String, String> properties;
 
     private AndroidRecordStoreManager rms;
+    private EventQueue slotEventQueue;
     private final AtomicBoolean closing = new AtomicBoolean();
     private final Map<String, String> systemProperties = new HashMap<>();
     private volatile int fpsLimit = -1;
@@ -89,6 +91,15 @@ public final class SlotSession {
             rms = new AndroidRecordStoreManager();
         }
         return rms;
+    }
+
+    /** Lay EventQueue rieng cho slot nay (NST pattern) */
+    public synchronized EventQueue eventQueue() {
+        if (slotEventQueue == null) {
+            slotEventQueue = new EventQueue();
+            slotEventQueue.startProcessing();
+        }
+        return slotEventQueue;
     }
 
     public boolean isClosing() {

@@ -555,28 +555,39 @@ public class MicroActivity extends AppCompatActivity {
 		}
 	}
 
-	public void setCurrent(Displayable displayable) {
-		// Capture session tu game thread (InheritableThreadLocal co gia tri o day)
-		final SlotSession session;
-		SlotSession threadSession = SlotRegistry.current();
-		if (threadSession != null) {
-			threadSession.setCurrent(displayable);
-			session = threadSession;
+	/** NST pattern: Display truyen ownerSession truc tiep */
+	public void setCurrent(SlotSession session, Displayable displayable) {
+		final SlotSession targetSession;
+		if (session != null) {
+			session.setCurrent(displayable);
+			targetSession = session;
 		} else {
-			session = SlotRegistry.focused();
+			// Fallback: lay tu thread hoac focused
+			SlotSession threadSession = SlotRegistry.current();
+			if (threadSession != null) {
+				threadSession.setCurrent(displayable);
+				targetSession = threadSession;
+			} else {
+				targetSession = SlotRegistry.focused();
+			}
 		}
 		// Update global state
 		current = displayable;
-		currentSession = session;
+		currentSession = targetSession;
 
 		// Post voi captured displayable va session — KHONG race condition
 		final Displayable capturedDisp = displayable;
 		ViewHandler.postEvent(new SimpleEvent() {
 			@Override
 			public void process() {
-				applySetCurrent(capturedDisp, session);
+				applySetCurrent(capturedDisp, targetSession);
 			}
 		});
+	}
+
+	/** Legacy: goi tu code cu khong co session */
+	public void setCurrent(Displayable displayable) {
+		setCurrent((SlotSession) null, displayable);
 	}
 
 	public Displayable getCurrent() {

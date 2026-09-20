@@ -58,11 +58,15 @@ public class MidletThread extends HandlerThread implements Handler.Callback {
 		Runnable r = () -> {
 			// Bind session cho thread nay (va tat ca child threads)
 			SlotRegistry.bind(session);
+			Log.i(TAG, "[Slot " + session.slot + "] MidletThread started, loading " + mainClass);
 			try {
 				midlet = microLoader.loadMIDlet(mainClass);
+				Log.i(TAG, "[Slot " + session.slot + "] loadMIDlet OK, calling startApp()");
 				started = true;
 				midlet.startApp();
+				Log.i(TAG, "[Slot " + session.slot + "] startApp() returned");
 			} catch (Throwable t) {
+				Log.e(TAG, "[Slot " + session.slot + "] MidletThread error", t);
 				t.printStackTrace();
 				Throwable cause = t;
 				Throwable e;
