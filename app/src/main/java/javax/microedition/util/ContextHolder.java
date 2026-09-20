@@ -120,7 +120,13 @@ public class ContextHolder {
 	}
 
 	public static File getFileByName(String name) {
-		return new File(Config.getDataDir() + AppClassLoader.getName(), name);
+		File file = new File(Config.getDataDir() + AppClassLoader.getName(), name);
+		// Tu tao thu muc parent neu chua ton tai (can thiet cho tab moi data moi)
+		File parent = file.getParentFile();
+		if (parent != null && !parent.exists()) {
+			parent.mkdirs();
+		}
+		return file;
 	}
 
 	public static File getCacheDir() {
