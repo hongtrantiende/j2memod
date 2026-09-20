@@ -579,6 +579,10 @@ public class MicroActivity extends AppCompatActivity {
 			disp.clearDisplayableView();
 			Intent intent = new Intent(MicroActivity.this, FloatingBubbleService.class);
 			intent.setAction("ACTION_UPDATE_DISPLAYABLE");
+			// Truyen slot index de FloatingBubbleService lay dung displayable
+			if (session != null) {
+				intent.putExtra("slot_index", session.slot);
+			}
 			startService(intent);
 			return;
 		}

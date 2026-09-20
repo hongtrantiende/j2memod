@@ -245,8 +245,15 @@ public class FloatingBubbleService extends Service {
         view.requestLayout();
     }
 
-    private void performUpdateDisplayable() {
-        Displayable currentDisplayable = MidletThread.getCurrentDisplayable();
+    private void performUpdateDisplayable(int slotIndex) {
+        Displayable currentDisplayable;
+        if (slotIndex >= 0) {
+            // Lay displayable tu dung slot duoc chi dinh
+            javax.microedition.shell.SlotSession session = javax.microedition.shell.SlotRegistry.get(slotIndex);
+            currentDisplayable = session != null ? session.getCurrent() : null;
+        } else {
+            currentDisplayable = MidletThread.getCurrentDisplayable();
+        }
         if (currentDisplayable == null || this.windowView == null) {
             return;
         }
@@ -770,7 +777,11 @@ public class FloatingBubbleService extends Service {
     }
 
     private void updateDisplayable() {
-        this.handler.post(this::performUpdateDisplayable);
+        updateDisplayable(-1);
+    }
+
+    private void updateDisplayable(int slotIndex) {
+        this.handler.post(() -> performUpdateDisplayable(slotIndex));
     }
 
     @Override
@@ -889,7 +900,8 @@ public class FloatingBubbleService extends Service {
         if (!"ACTION_UPDATE_DISPLAYABLE".equals(action) || this.windowView == null || this.windowView.getVisibility() != View.VISIBLE) {
             return START_STICKY;
         }
-        updateDisplayable();
+        int slotIndex = intent.getIntExtra("slot_index", -1);
+        updateDisplayable(slotIndex);
         return START_STICKY;
     }
 }
